@@ -175,7 +175,6 @@ function useTranscriptPaddingBottom() {
 }
 
 const MOBILE_RIGHT_SIDEBAR_BREAKPOINT_PX = 768
-const TRANSPARENT_NAVBAR_TRANSCRIPT_WIDTH_PX = 1320
 const RIGHT_SIDEBAR_MIN_WORKSPACE_SIZE_PERCENT = 20
 const RIGHT_SIDEBAR_MAX_SIZE_PERCENT = 100 - RIGHT_SIDEBAR_MIN_WORKSPACE_SIZE_PERCENT
 
@@ -479,7 +478,6 @@ export function ChatPage() {
   const chatInputRef = useRef<ChatInputHandle | null>(null)
   const { inputRef, syncInputHeight, transcriptPaddingBottom } = useTranscriptPaddingBottom()
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
-  const [isTranscriptViewportNarrow, setIsTranscriptViewportNarrow] = useState(true)
   const [pendingTerminalCommands, setPendingTerminalCommands] = useState<Record<string, string>>({})
   const showEmptyState = state.messages.length === 0 && state.runtime?.title === "New Chat"
   const projectId = state.activeProjectId
@@ -532,9 +530,6 @@ export function ChatPage() {
     shouldRenderTerminalLayout,
     terminalMainSizes: terminalLayout.mainSizes,
   })
-  const handleTranscriptViewportWidthChange = useCallback((width: number) => {
-    setIsTranscriptViewportNarrow(width < TRANSPARENT_NAVBAR_TRANSCRIPT_WIDTH_PX)
-  }, [])
 
   const {
     isAnimating: isTerminalAnimating,
@@ -947,7 +942,6 @@ export function ChatPage() {
           branchName={state.chatDiffSnapshot?.branchName}
           hasGitRepo={state.chatDiffSnapshot?.status !== "no_repo"}
           gitStatus={state.chatDiffSnapshot?.status}
-          isTranscriptViewportNarrow={isTranscriptViewportNarrow}
         />
         <ChatTranscriptViewport
           activeChatId={state.activeChatId}
@@ -980,7 +974,6 @@ export function ChatPage() {
           isEmptyStateTypingComplete={isEmptyStateTypingComplete}
           isPageFileDragActive={isPageFileDragActive}
           showEmptyState={showEmptyState}
-          onViewportWidthChange={handleTranscriptViewportWidthChange}
         />
       </CardContent>
 
