@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { PROVIDERS } from "../../../shared/types"
-import { ChatInput, getClipboardImageFiles, trimTrailingPastedNewlines, willExceedAttachmentLimit } from "./ChatInput"
+import {
+  ChatInput,
+  getClipboardImageFiles,
+  isDesktopLikeInputDevice,
+  trimTrailingPastedNewlines,
+  willExceedAttachmentLimit,
+} from "./ChatInput"
 
 function createClipboardItem(args: {
   kind?: string
@@ -118,6 +124,43 @@ describe("trimTrailingPastedNewlines", () => {
 
   test("leaves text without trailing newlines unchanged", () => {
     expect(trimTrailingPastedNewlines("hello")).toBe("hello")
+  })
+})
+
+describe("isDesktopLikeInputDevice", () => {
+  function matchMediaFor(matches: Record<string, boolean>) {
+    return (query: string) => ({ matches: matches[query] ?? false })
+  }
+
+  test("treats touch computers with a fine pointer as desktop-like", () => {
+    expect(isDesktopLikeInputDevice({
+      matchMedia: matchMediaFor({ "(any-pointer: fine)": true }),
+      hasTouchStart: true,
+      maxTouchPoints: 10,
+    })).toBe(true)
+  })
+
+  test("treats hover-capable devices as desktop-like", () => {
+    expect(isDesktopLikeInputDevice({
+      matchMedia: matchMediaFor({ "(any-hover: hover)": true }),
+      hasTouchStart: true,
+      maxTouchPoints: 10,
+    })).toBe(true)
+  })
+
+  test("keeps touch-only phones and tablets out of desktop Enter submit behavior", () => {
+    expect(isDesktopLikeInputDevice({
+      matchMedia: matchMediaFor({}),
+      hasTouchStart: true,
+      maxTouchPoints: 5,
+    })).toBe(false)
+  })
+
+  test("falls back to desktop-like when matchMedia is unavailable and no touch support is reported", () => {
+    expect(isDesktopLikeInputDevice({
+      hasTouchStart: false,
+      maxTouchPoints: 0,
+    })).toBe(true)
   })
 })
 
