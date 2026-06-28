@@ -301,15 +301,15 @@ describe("chat preference store", () => {
     })
   })
 
-  test("last_used falls back to provider defaults when no real last-used state exists", () => {
+  test("last_used falls back to Codex defaults when no real last-used state exists", () => {
     useChatPreferencesStore.setState({
       ...INITIAL_STATE,
       defaultProvider: "last_used",
       providerDefaults: {
         ...INITIAL_STATE.providerDefaults,
-        claude: {
-          model: "claude-opus-4-8",
-          modelOptions: { reasoningEffort: "max", contextWindow: "1m" },
+        codex: {
+          model: "gpt-5.3-codex-spark",
+          modelOptions: { reasoningEffort: "minimal", fastMode: true },
           planMode: true,
         },
       },
@@ -319,9 +319,9 @@ describe("chat preference store", () => {
     useChatPreferencesStore.getState().initializeComposerForChat("chat-a")
 
     expect(useChatPreferencesStore.getState().getComposerState("chat-a")).toEqual({
-      provider: "claude",
-      model: "claude-opus-4-8",
-      modelOptions: { reasoningEffort: "max", contextWindow: "1m" },
+      provider: "codex",
+      model: "gpt-5.3-codex-spark",
+      modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
     })
   })
@@ -332,17 +332,17 @@ describe("chat preference store", () => {
     store.initializeComposerForChat(NEW_CHAT_COMPOSER_ID)
     store.syncProviderDefaults("last_used", {
       ...INITIAL_STATE.providerDefaults,
-      claude: {
-        model: "claude-opus-4-8",
-        modelOptions: { reasoningEffort: "max", contextWindow: "1m" },
+      codex: {
+        model: "gpt-5.3-codex-spark",
+        modelOptions: { reasoningEffort: "minimal", fastMode: true },
         planMode: true,
       },
     })
 
     expect(useChatPreferencesStore.getState().getComposerState(NEW_CHAT_COMPOSER_ID)).toEqual({
-      provider: "claude",
-      model: "claude-opus-4-8",
-      modelOptions: { reasoningEffort: "max", contextWindow: "1m" },
+      provider: "codex",
+      model: "gpt-5.3-codex-spark",
+      modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
     })
   })
@@ -353,17 +353,17 @@ describe("chat preference store", () => {
     store.initializeComposerForChat("chat-a")
     store.syncProviderDefaults("last_used", {
       ...INITIAL_STATE.providerDefaults,
-      claude: {
-        model: "claude-opus-4-8",
-        modelOptions: { reasoningEffort: "max", contextWindow: "1m" },
+      codex: {
+        model: "gpt-5.3-codex-spark",
+        modelOptions: { reasoningEffort: "minimal", fastMode: true },
         planMode: true,
       },
     })
 
     expect(useChatPreferencesStore.getState().getComposerState("chat-a")).toEqual({
-      provider: "claude",
-      model: "claude-opus-4-8",
-      modelOptions: { reasoningEffort: "max", contextWindow: "1m" },
+      provider: "codex",
+      model: "gpt-5.3-codex-spark",
+      modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
     })
   })

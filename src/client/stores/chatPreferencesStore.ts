@@ -363,7 +363,7 @@ function createComposerStateForNewChat(args: {
       return cloneComposerState(args.legacyComposerState)
     }
 
-    return composerFromProviderDefaults("claude", args.providerDefaults)
+    return composerFromProviderDefaults("codex", args.providerDefaults)
   }
 
   return composerFromProviderDefaults(args.defaultProvider, args.providerDefaults)
