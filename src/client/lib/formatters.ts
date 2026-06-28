@@ -29,7 +29,7 @@ export function formatBashCommandTitle(command: string): string {
 }
 
 export function getPathBasename(fullPath: string): string {
-  return fullPath.split("/").pop() || fullPath
+  return fullPath.split(/[\\/]/u).filter(Boolean).pop() || fullPath
 }
 
 export function formatModelLabel(modelId: string): string {
