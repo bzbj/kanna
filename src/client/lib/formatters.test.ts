@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { formatBashCommandTitle, formatSidebarAgeLabel } from "./formatters"
+import { formatBashCommandTitle, formatSidebarAgeLabel, getPathBasename } from "./formatters"
 
 describe("formatBashCommandTitle", () => {
   test("unwraps codex zsh -lc commands", () => {
@@ -28,6 +28,13 @@ describe("formatBashCommandTitle", () => {
 
   test("leaves plain commands alone", () => {
     expect(formatBashCommandTitle("bun test --help")).toBe("bun test --help")
+  })
+})
+
+describe("getPathBasename", () => {
+  test("returns the final segment for POSIX and Windows paths", () => {
+    expect(getPathBasename("/Users/jake/Projects/kanna")).toBe("kanna")
+    expect(getPathBasename("C:\\Users\\iamppr\\Documents\\Business plan")).toBe("Business plan")
   })
 })
 
