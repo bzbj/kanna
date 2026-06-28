@@ -271,7 +271,7 @@ export async function runCli(argv: string[], deps: CliRuntimeDeps): Promise<CliR
 
   const { port, stop } = await deps.startServer({
     ...parsedArgs.options,
-    trustProxy: isShareEnabled(parsedArgs.options.share),
+    trustProxy: isShareEnabled(parsedArgs.options.share) || process.env.KANNAGW_TRUST_PROXY === "1",
     onMigrationProgress: deps.log,
     update: {
       version: deps.version,
@@ -370,7 +370,7 @@ export function classifyInstallVersionFailure(output: string): UpdateInstallAtte
     ok: false,
     errorCode: "install_failed",
     userTitle: "Update failed",
-    userMessage: "Kanna could not install the update. Try again later.",
+    userMessage: `${APP_NAME} could not install the update. Try again later.`,
   }
 }
 
@@ -380,7 +380,7 @@ export function installPackageVersion(packageName: string, version: string) {
       ok: false,
       errorCode: "command_missing",
       userTitle: "Bun not found",
-      userMessage: "Kanna could not find Bun to install the update.",
+      userMessage: `${APP_NAME} could not find Bun to install the update.`,
     } satisfies UpdateInstallAttemptResult
   }
 

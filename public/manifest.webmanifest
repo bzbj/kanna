@@ -1,6 +1,6 @@
 {
-  "name": "Kanna",
-  "short_name": "Kanna",
+  "name": "hakimi",
+  "short_name": "hakimi",
   "description": "A beautiful local web UI for coding agents.",
   "start_url": "/",
   "scope": "/",
@@ -9,19 +9,19 @@
   "theme_color": "#222324",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/g-favicon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/g-favicon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable-512.png",
+      "src": "/g-favicon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -33,14 +33,14 @@
       "sizes": "3824x2482",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Kanna light theme chat view"
+      "label": "hakimi light theme chat view"
     },
     {
       "src": "/screenshot.png",
       "sizes": "3824x2482",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Kanna dark theme chat view"
+      "label": "hakimi dark theme chat view"
     }
   ]
 }

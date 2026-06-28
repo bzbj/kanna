@@ -19,6 +19,7 @@ import { generateUUID } from "../lib/utils"
 import { canCancelStatus, getLatestToolIds, isProcessingStatus } from "./derived"
 import { KannaSocket, type SocketStatus } from "./socket"
 import type { EditorOpenSettings, OpenExternalAction } from "../../shared/protocol"
+import { APP_NAME } from "../../shared/branding"
 
 function sameRuntime(left: ChatSnapshot["runtime"] | null | undefined, right: ChatSnapshot["runtime"] | null | undefined) {
   if (left === right) return true
@@ -1475,7 +1476,7 @@ export function useKannaState(activeChatId: string | null): KannaState {
         setCommandError(null)
         await dialog.alert({
           title: result.userTitle ?? "Update failed",
-          description: result.userMessage ?? "Kanna could not install the update. Try again later.",
+          description: result.userMessage ?? `${APP_NAME} could not install the update. Try again later.`,
           closeLabel: "OK",
         })
         return

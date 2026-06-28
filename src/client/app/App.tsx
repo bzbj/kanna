@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Flower } from "lucide-react"
 import { StandaloneShareDialog } from "../components/chat-ui/StandaloneShareDialog"
 import { AppDialogProvider } from "../components/ui/app-dialog"
 import { Button } from "../components/ui/button"
@@ -71,9 +70,9 @@ function PasswordScreen({
       <Card className="w-full max-w-md rounded-3xl border border-border bg-card shadow-sm">
         <CardHeader className="flex flex-col p-2 space-y-3 px-6 pt-6 pb-5 pl-[28px]">
           <div className="flex items-center gap-3">
-            <Flower className="h-5 w-5 text-logo" />
+            <img src="/g-favicon.png" alt="" className="h-8 w-8 rounded-lg object-contain" />
             <div>
-              <CardTitle className="font-logo text-xl uppercase text-slate-600 dark:text-slate-100">{APP_NAME}</CardTitle>
+              <CardTitle className="font-logo text-xl lowercase text-slate-600 dark:text-slate-100">{APP_NAME}</CardTitle>
             </div>
           </div>
           <CardDescription className="leading-6">

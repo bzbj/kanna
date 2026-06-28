@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
-import { Flower, Loader2, PanelLeft, X, Menu, Plus, Settings } from "lucide-react"
+import { Loader2, PanelLeft, X, Menu, Plus, Settings } from "lucide-react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { APP_NAME } from "../../shared/branding"
 import { Button } from "../components/ui/button"
@@ -39,6 +39,29 @@ function readStoredSidebarWidth() {
 function persistSidebarWidth(width: number) {
   if (typeof window === "undefined") return
   window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clampSidebarWidth(width)))
+}
+
+function BrandMark({ className }: { className?: string }) {
+  return <img src="/g-favicon.png" alt="" aria-hidden="true" draggable={false} className={className} />
+}
+
+function SidebarWordmark() {
+  return (
+    <>
+      <img
+        src="/linjunkai-logo-full.png"
+        alt="Linjunkai.com"
+        className="h-7 w-auto max-w-[190px] object-contain dark:hidden"
+        draggable={false}
+      />
+      <img
+        src="/linjunkai-logo-dark.png"
+        alt="Linjunkai.com"
+        className="hidden h-7 w-auto max-w-[190px] object-contain dark:block"
+        draggable={false}
+      />
+    </>
+  )
 }
 
 interface KannaSidebarProps {
@@ -370,7 +393,7 @@ function KannaSidebarImpl({
       {collapsed && isUtilityPageActive && (
         <div className="hidden md:flex fixed left-0 top-0 h-full z-40 items-start pt-4 pl-5 border-l border-border/0">
           <div className="flex items-center gap-1">
-            <Flower className="size-6 text-logo" />
+            <BrandMark className="size-6 rounded-md object-contain" />
             <Button
               variant="ghost"
               size="icon"
@@ -412,11 +435,11 @@ function KannaSidebarImpl({
               title="Collapse sidebar"
               className="hidden md:flex group/sidebar-collapse relative items-center justify-center h-5 w-5 sm:h-6 sm:w-6"
             >
-              <Flower className="absolute inset-0.5 h-4 w-4 sm:h-5 sm:w-5 text-logo transition-all duration-200 ease-out opacity-100 scale-100 group-hover/sidebar-collapse:opacity-0 group-hover/sidebar-collapse:scale-0" />
+              <BrandMark className="absolute inset-0.5 h-4 w-4 sm:h-5 sm:w-5 rounded-md object-contain transition-all duration-200 ease-out opacity-100 scale-100 group-hover/sidebar-collapse:opacity-0 group-hover/sidebar-collapse:scale-0" />
               <PanelLeft className="absolute inset-0 h-4 w-4 sm:h-6 sm:w-6 text-slate-500 dark:text-slate-400 transition-all duration-200 ease-out opacity-0 scale-0 group-hover/sidebar-collapse:opacity-100 group-hover/sidebar-collapse:scale-80 hover:opacity-50" />
             </button>
-            <Flower className="h-5 w-5 sm:h-6 sm:w-6 text-logo md:hidden" />
-            <span className="font-logo text-base uppercase sm:text-md text-slate-600 dark:text-slate-100">{APP_NAME}</span>
+            <BrandMark className="h-5 w-5 rounded-md object-contain sm:h-6 sm:w-6 md:hidden" />
+            <SidebarWordmark />
           </div>
           <div className="flex items-center justify-self-end md:justify-self-auto">
             <Button
@@ -445,7 +468,7 @@ function KannaSidebarImpl({
                 className="hidden md:inline-flex rounded-full !h-auto mr-1 py-0.5 px-2 bg-logo/20 hover:bg-logo text-logo border-logo/20 hover:text-foreground hover:border-logo/20 text-[11px] font-bold tracking-wider"
                 onClick={onOpenChangelog}
                 disabled={isUpdating}
-                title={updateSnapshot?.latestVersion ? `Update to ${updateSnapshot.latestVersion}` : "Update Kanna"}
+                title={updateSnapshot?.latestVersion ? `Update to ${updateSnapshot.latestVersion}` : `Update ${APP_NAME}`}
               >
                 {isUpdating ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
                 UPDATE

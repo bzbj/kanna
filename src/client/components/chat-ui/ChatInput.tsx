@@ -578,8 +578,15 @@ const ChatInputInner = forwardRef<ChatInputHandle, Props>(function ChatInput({
       return
     }
 
+    const isModifiedEnter = event.ctrlKey || event.metaKey
     const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0
-    if (event.key === "Enter" && !event.shiftKey && !isTouchDevice && !disabled && hasTextToSend && !hasPendingUploads) {
+    if (
+      event.key === "Enter"
+      && !event.shiftKey
+      && !disabled
+      && !hasPendingUploads
+      && ((isModifiedEnter && canSubmit) || (!isModifiedEnter && !isTouchDevice && hasTextToSend))
+    ) {
       event.preventDefault()
       void handleSubmit()
     }
@@ -689,7 +696,7 @@ const ChatInputInner = forwardRef<ChatInputHandle, Props>(function ChatInput({
               aria-label="Add attachment"
               className={cn(
                 buttonVariants({ variant: "ghost", size: "icon" }),
-                "relative md:hidden flex-shrink-0 ml-1 mb-1 h-10 w-10 rounded-full text-muted-foreground hover:text-foreground",
+                "relative flex-shrink-0 ml-1 mb-1 md:mb-1.5 h-10 w-10 md:h-11 md:w-11 rounded-full text-muted-foreground hover:text-foreground",
                 disabled && "pointer-events-none opacity-50",
               )}
             >

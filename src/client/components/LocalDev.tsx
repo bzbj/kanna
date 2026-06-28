@@ -264,7 +264,7 @@ export function LocalDev({
         <>
           <PageHeader
             title={snapshot?.machine.displayName ?? "Local Projects"}
-            subtitle={`${APP_NAME} is connected, choose a project below to get started.`}
+            subtitle={`${APP_NAME} is connected. Choose a project below to get started.`}
           />
 
           <div className="w-full px-6 mb-10">

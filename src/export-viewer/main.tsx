@@ -1,7 +1,7 @@
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createRoot } from "react-dom/client"
 import { type LegendListRef } from "@legendapp/list/react"
-import { ChevronRight, Flower } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import "@fontsource-variable/bricolage-grotesque"
 import { ChatTranscriptViewport } from "../client/app/ChatPage/ChatTranscriptViewport"
 import { getLatestToolIds } from "../client/app/derived"
@@ -60,7 +60,7 @@ function StandaloneTranscriptApp() {
       return
     }
 
-    document.title = `${state.bundle.title} | Kanna`
+    document.title = `${state.bundle.title} | ${APP_NAME}`
     document.documentElement.classList.toggle("dark", state.bundle.theme === "dark")
     document.documentElement.style.colorScheme = state.bundle.theme
 
@@ -138,8 +138,8 @@ function StandaloneTranscriptApp() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Flower className="h-5 w-5 sm:h-6 sm:w-6 text-logo" />
-                  <span className="font-logo text-base uppercase sm:text-lg text-slate-600 dark:text-slate-100">
+                  <img src="/g-favicon.png" alt="" className="h-5 w-5 rounded-md object-contain sm:h-6 sm:w-6" />
+                  <span className="font-logo text-base lowercase sm:text-lg text-slate-600 dark:text-slate-100">
                     {APP_NAME}
                   </span>
                 </a>
@@ -184,9 +184,9 @@ function StandaloneTranscriptApp() {
 
             <div className="absolute bottom-4 left-1/2 z-20 w-full -translate-x-1/2 md:w-auto">
               <div className="mx-2 flex items-center gap-3 rounded-xl border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur-lg md:mx-0">
-                <Flower className="h-6 w-6 flex-shrink-0 text-logo" />
+                <img src="/g-favicon.png" alt="" className="h-6 w-6 flex-shrink-0 rounded-md object-contain" />
                 <p className="flex-1 text-sm text-foreground sm:text-base">
-                  Kanna is a delightful open-source harness UI
+                  {APP_NAME} is a delightful open-source harness UI
                 </p>
                 <a
                   className="ml-4 flex flex-shrink-0 flex-row items-center gap-1 rounded-lg bg-logo px-3 py-1.5 pr-2 text-sm font-bold text-white transition-colors hover:bg-logo/90"

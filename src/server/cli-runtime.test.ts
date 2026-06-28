@@ -4,6 +4,7 @@ import { CLI_SUPPRESS_OPEN_ONCE_ENV_VAR } from "./restart"
 
 const originalRuntimeProfile = process.env.KANNA_RUNTIME_PROFILE
 const originalSuppressOpen = process.env[CLI_SUPPRESS_OPEN_ONCE_ENV_VAR]
+const originalGatewayTrustProxy = process.env.KANNAGW_TRUST_PROXY
 
 afterEach(() => {
   if (originalRuntimeProfile === undefined) {
@@ -15,6 +16,11 @@ afterEach(() => {
     delete process.env[CLI_SUPPRESS_OPEN_ONCE_ENV_VAR]
   } else {
     process.env[CLI_SUPPRESS_OPEN_ONCE_ENV_VAR] = originalSuppressOpen
+  }
+  if (originalGatewayTrustProxy === undefined) {
+    delete process.env.KANNAGW_TRUST_PROXY
+  } else {
+    process.env.KANNAGW_TRUST_PROXY = originalGatewayTrustProxy
   }
 })
 
@@ -309,6 +315,15 @@ describe("runCli", () => {
     await runCli(["--port", "4000", "--no-open"], deps)
 
     expect(calls.log).toContain("[kanna] data dir: ~/.kanna-dev/data")
+  })
+
+  test("honors KANNAGW_TRUST_PROXY for externally managed reverse proxies", async () => {
+    process.env.KANNAGW_TRUST_PROXY = "1"
+    const { calls, deps } = createDeps()
+
+    await runCli(["--port", "4000", "--no-open"], deps)
+
+    expect(calls.startServer[0]?.trustProxy).toBe(true)
   })
 
   test("fails fast on unsupported Bun versions", async () => {

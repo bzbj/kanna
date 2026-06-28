@@ -1,5 +1,5 @@
 import { type MouseEvent as ReactMouseEvent } from "react"
-import { Check, Flower, GitBranch, Globe, Loader2, Menu, MoreHorizontal, PanelLeft, PanelRight, SquarePen, Terminal, UserRoundPlus } from "lucide-react"
+import { Check, GitBranch, Globe, Loader2, Menu, MoreHorizontal, PanelLeft, PanelRight, SquarePen, Terminal, UserRoundPlus } from "lucide-react"
 import type { EditorOpenSettings, EditorPreset, OpenExternalAction } from "../../../shared/protocol"
 import { Button } from "../ui/button"
 import { CardHeader } from "../ui/card"
@@ -177,7 +177,7 @@ export function ChatNavbar({
           {sidebarCollapsed && (
             <>
               <div className="hidden md:flex items-center justify-center w-[36px] h-[36px]">
-                <Flower className="h-4 w-4 sm:h-5 sm:w-5 text-logo ml-1 hidden md:block" />
+                <img src="/g-favicon.png" alt="" className="ml-1 hidden h-4 w-4 rounded-md object-contain sm:h-5 sm:w-5 md:block" />
               </div>
               <Button
                 variant="ghost"

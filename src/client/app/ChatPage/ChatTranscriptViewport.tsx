@@ -1,6 +1,6 @@
 import { LegendList, type LegendListRef } from "@legendapp/list/react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowDown, Flower, Upload } from "lucide-react"
+import { ArrowDown, Upload } from "lucide-react"
 import { AnimatedShinyText } from "../../components/ui/animated-shiny-text"
 import { DrainingIndicator } from "../../components/messages/DrainingIndicator"
 import { QueuedUserMessage } from "../../components/messages/QueuedUserMessage"
@@ -326,7 +326,12 @@ export const ChatTranscriptViewport = memo(function ChatTranscriptViewport({
         >
           <div className="mx-auto flex h-full max-w-[800px] items-center justify-center">
             <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground opacity-70">
-              <Flower strokeWidth={1.5} className="kanna-empty-state-flower size-8 text-muted-foreground" />
+              <img
+                src="/g-favicon.png"
+                alt=""
+                className="kanna-empty-state-flower size-8 rounded-lg object-contain opacity-80"
+                draggable={false}
+              />
               <div
                 className="kanna-empty-state-text flex max-w-xs items-center text-center text-base font-normal text-muted-foreground"
                 aria-label={EMPTY_STATE_TEXT}

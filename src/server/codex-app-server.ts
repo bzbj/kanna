@@ -10,6 +10,7 @@ import type {
   TodoItem,
   TranscriptEntry,
 } from "../shared/types"
+import { APP_NAME } from "../shared/branding"
 import type { HarnessEvent, HarnessToolRequest, HarnessTurn } from "./harness-types"
 import {
   type CollabAgentToolCallItem,
@@ -773,7 +774,7 @@ export class CodexAppServerManager {
     await this.sendRequest(context, "initialize", {
       clientInfo: {
         name: "kanna_desktop",
-        title: "Kanna",
+        title: APP_NAME,
         version: "0.1.0",
       },
       capabilities: {

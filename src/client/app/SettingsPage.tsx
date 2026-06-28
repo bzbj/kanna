@@ -21,7 +21,7 @@ import {
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { useNavigate, useOutletContext, useParams } from "react-router-dom"
-import { getKeybindingsFilePathDisplay, SDK_CLIENT_APP } from "../../shared/branding"
+import { APP_NAME, getKeybindingsFilePathDisplay, SDK_CLIENT_APP } from "../../shared/branding"
 import { ANALYTICS_STATIC_EVENT_NAMES, ANALYTICS_STATIC_PROPERTY_NAMES } from "../../shared/analytics"
 import {
   DEFAULT_KEYBINDINGS,
@@ -867,7 +867,7 @@ export function SettingsPage() {
     : updateSnapshot?.status === "updating"
       ? "Installing update…"
       : updateSnapshot?.status === "restart_pending"
-        ? "Restarting Kanna…"
+        ? `Restarting ${APP_NAME}…`
         : updateSnapshot?.status === "available"
           ? `Update available${updateSnapshot.latestVersion ? `: ${updateSnapshot.latestVersion}` : ""}`
           : updateSnapshot?.status === "up_to_date"
@@ -1573,7 +1573,7 @@ export function SettingsPage() {
                         description={(
                           <>
                             <span>
-                              Help improve Kanna with anonymous product analytics. Kanna sends tracked event names plus a small set of event properties like current version, environment, update version info, and launch flags. No message content, prompts, file paths, or provider credentials are sent.
+                              Help improve {APP_NAME} with anonymous product analytics. {APP_NAME} sends tracked event names plus a small set of event properties like current version, environment, update version info, and launch flags. No message content, prompts, file paths, or provider credentials are sent.
                             </span>
                             <span className="mt-1 block">
                               Stored in {appSettings?.filePathDisplay ?? "~/.kanna/data/settings.json"}.
@@ -1877,7 +1877,7 @@ export function SettingsPage() {
           <DialogBody className="space-y-4">
             <DialogTitle>Tracked Events</DialogTitle>
             <div className="text-sm text-muted-foreground">
-              Kanna sends these event names plus the limited property keys below, depending on the event type.
+              {APP_NAME} sends these event names plus the limited property keys below, depending on the event type.
             </div>
             <div className="max-h-[60vh] overflow-auto rounded-lg border border-border bg-muted/40 p-3">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
