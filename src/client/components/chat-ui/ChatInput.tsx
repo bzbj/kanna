@@ -95,6 +95,23 @@ export function trimTrailingPastedNewlines(text: string) {
   return text.replace(/(?:\r\n|\r|\n)+$/, "")
 }
 
+export function isDesktopLikeInputDevice(capabilities?: {
+  matchMedia?: (query: string) => { matches: boolean }
+  hasTouchStart?: boolean
+  maxTouchPoints?: number
+}) {
+  const matchMedia = capabilities?.matchMedia
+    ?? (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia.bind(window) : undefined)
+
+  if (matchMedia) {
+    return matchMedia("(any-pointer: fine)").matches || matchMedia("(any-hover: hover)").matches
+  }
+
+  const hasTouchStart = capabilities?.hasTouchStart ?? (typeof window !== "undefined" && "ontouchstart" in window)
+  const maxTouchPoints = capabilities?.maxTouchPoints ?? (typeof navigator !== "undefined" ? navigator.maxTouchPoints : 0)
+  return !hasTouchStart && maxTouchPoints === 0
+}
+
 function replaceTextSelection(args: {
   value: string
   insertedText: string
@@ -579,13 +596,13 @@ const ChatInputInner = forwardRef<ChatInputHandle, Props>(function ChatInput({
     }
 
     const isModifiedEnter = event.ctrlKey || event.metaKey
-    const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0
+    const isDesktopLikeDevice = isDesktopLikeInputDevice()
     if (
       event.key === "Enter"
       && !event.shiftKey
       && !disabled
       && !hasPendingUploads
-      && ((isModifiedEnter && canSubmit) || (!isModifiedEnter && !isTouchDevice && hasTextToSend))
+      && ((isModifiedEnter && canSubmit) || (!isModifiedEnter && isDesktopLikeDevice && hasTextToSend))
     ) {
       event.preventDefault()
       void handleSubmit()
