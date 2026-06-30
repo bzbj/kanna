@@ -17,6 +17,7 @@ import { EventStore } from "./event-store"
 import type { AnalyticsReporter } from "./analytics"
 import { NoopAnalyticsReporter } from "./analytics"
 import { CodexAppServerManager } from "./codex-app-server"
+import { CodexExecManager } from "./codex-exec"
 import { type GenerateChatTitleResult, generateTitleForChatDetailed } from "./generate-title"
 import type { HarnessEvent, HarnessToolRequest, HarnessTurn } from "./harness-types"
 import {
@@ -101,11 +102,16 @@ interface ClaudeSessionState {
   pendingPromptSeqs: number[]
 }
 
+type CodexManager = Pick<
+  CodexAppServerManager,
+  "startSession" | "startTurn" | "generateStructured" | "stopSession" | "stopAll"
+>
+
 interface AgentCoordinatorArgs {
   store: EventStore
   onStateChange: (chatId?: string, options?: { immediate?: boolean }) => void
   analytics?: AnalyticsReporter
-  codexManager?: CodexAppServerManager
+  codexManager?: CodexManager
   generateTitle?: (messageContent: string, cwd: string) => Promise<GenerateChatTitleResult>
   startClaudeSession?: (args: {
     localPath: string
@@ -133,6 +139,12 @@ function logClaudeSteer(stage: string, details?: Record<string, unknown>) {
     stage,
     ...details,
   }))
+}
+
+function createDefaultCodexManager(): CodexManager {
+  return process.env.KANNA_CODEX_BACKEND === "exec"
+    ? new CodexExecManager()
+    : new CodexAppServerManager()
 }
 
 const STEERED_MESSAGE_PREFIX = `<system-message>
@@ -679,7 +691,7 @@ export class AgentCoordinator {
   private readonly store: EventStore
   private readonly onStateChange: (chatId?: string, options?: { immediate?: boolean }) => void
   private readonly analytics: AnalyticsReporter
-  private readonly codexManager: CodexAppServerManager
+  private readonly codexManager: CodexManager
   private readonly generateTitle: (messageContent: string, cwd: string) => Promise<GenerateChatTitleResult>
   private readonly startClaudeSessionFn: NonNullable<AgentCoordinatorArgs["startClaudeSession"]>
   private reportBackgroundError: ((message: string) => void) | null = null
@@ -691,7 +703,7 @@ export class AgentCoordinator {
     this.store = args.store
     this.onStateChange = args.onStateChange
     this.analytics = args.analytics ?? NoopAnalyticsReporter
-    this.codexManager = args.codexManager ?? new CodexAppServerManager()
+    this.codexManager = args.codexManager ?? createDefaultCodexManager()
     this.generateTitle = args.generateTitle ?? generateTitleForChatDetailed
     this.startClaudeSessionFn = args.startClaudeSession ?? startClaudeSession
   }

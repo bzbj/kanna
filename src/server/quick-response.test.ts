@@ -1,8 +1,23 @@
 import { describe, expect, test } from "bun:test"
+import { CodexExecManager } from "./codex-exec"
 import { fallbackTitleFromMessage, generateTitleForChat, generateTitleForChatDetailed } from "./generate-title"
-import { getQuickResponseWorkspace, QuickResponseAdapter } from "./quick-response"
+import { createDefaultQuickResponseCodexManager, getQuickResponseWorkspace, QuickResponseAdapter } from "./quick-response"
 
 describe("QuickResponseAdapter", () => {
+  test("uses the exec Codex manager for fallback when the backend switch is enabled", () => {
+    const previousBackend = process.env.KANNA_CODEX_BACKEND
+    process.env.KANNA_CODEX_BACKEND = "exec"
+    try {
+      expect(createDefaultQuickResponseCodexManager()).toBeInstanceOf(CodexExecManager)
+    } finally {
+      if (previousBackend === undefined) {
+        delete process.env.KANNA_CODEX_BACKEND
+      } else {
+        process.env.KANNA_CODEX_BACKEND = previousBackend
+      }
+    }
+  })
+
   test("returns the SDK structured result when configured and it validates", async () => {
     const adapter = new QuickResponseAdapter({
       readLlmProvider: async () => ({

@@ -4,6 +4,7 @@ import OpenAI from "openai"
 import { getDataRootDir } from "../shared/branding"
 import type { LlmProviderSnapshot } from "../shared/types"
 import { CodexAppServerManager } from "./codex-app-server"
+import { CodexExecManager } from "./codex-exec"
 import { readLlmProviderSnapshot } from "./llm-provider"
 
 const CLAUDE_STRUCTURED_TIMEOUT_MS = 5_000
@@ -24,7 +25,7 @@ export interface StructuredQuickResponseArgs<T> {
 }
 
 interface QuickResponseAdapterArgs {
-  codexManager?: CodexAppServerManager
+  codexManager?: CodexStructuredManager
   readLlmProvider?: () => Promise<LlmProviderSnapshot>
   runOpenAIStructured?: (
     config: LlmProviderSnapshot,
@@ -33,6 +34,8 @@ interface QuickResponseAdapterArgs {
   runClaudeStructured?: (args: Omit<StructuredQuickResponseArgs<unknown>, "parse">) => Promise<unknown | null>
   runCodexStructured?: (args: Omit<StructuredQuickResponseArgs<unknown>, "parse">) => Promise<unknown | null>
 }
+
+type CodexStructuredManager = Pick<CodexAppServerManager, "generateStructured">
 
 export interface StructuredQuickResponseFailure {
   provider: "openai" | "claude" | "codex"
@@ -167,7 +170,7 @@ export async function runOpenAIStructured(
 }
 
 export async function runCodexStructured(
-  codexManager: CodexAppServerManager,
+  codexManager: CodexStructuredManager,
   args: Omit<StructuredQuickResponseArgs<unknown>, "parse">
 ): Promise<unknown | null> {
   const response = await codexManager.generateStructured({
@@ -179,8 +182,14 @@ export async function runCodexStructured(
   return parseJsonText(response)
 }
 
+export function createDefaultQuickResponseCodexManager(): CodexStructuredManager {
+  return process.env.KANNA_CODEX_BACKEND === "exec"
+    ? new CodexExecManager()
+    : new CodexAppServerManager()
+}
+
 export class QuickResponseAdapter {
-  private readonly codexManager: CodexAppServerManager
+  private readonly codexManager: CodexStructuredManager
   private readonly readLlmProvider: () => Promise<LlmProviderSnapshot>
   private readonly runOpenAIStructured: (
     config: LlmProviderSnapshot,
@@ -190,7 +199,7 @@ export class QuickResponseAdapter {
   private readonly runCodexStructured: (args: Omit<StructuredQuickResponseArgs<unknown>, "parse">) => Promise<unknown | null>
 
   constructor(args: QuickResponseAdapterArgs = {}) {
-    this.codexManager = args.codexManager ?? new CodexAppServerManager()
+    this.codexManager = args.codexManager ?? createDefaultQuickResponseCodexManager()
     this.readLlmProvider = args.readLlmProvider ?? (() => readLlmProviderSnapshot())
     this.runOpenAIStructured = args.runOpenAIStructured ?? runOpenAIStructured
     this.runClaudeStructured = args.runClaudeStructured ?? runClaudeStructured
