@@ -3,13 +3,42 @@ import { randomUUID } from "node:crypto"
 import { createInterface } from "node:readline"
 import type { Readable, Writable } from "node:stream"
 import type {
+  CodexPermissionMode,
   CodexReasoningEffort,
   ContextWindowUsageSnapshot,
   ServiceTier,
   TranscriptEntry,
 } from "../shared/types"
-import type { HarnessEvent, HarnessTurn } from "./harness-types"
-import type { GenerateStructuredArgs, StartCodexSessionArgs, StartCodexTurnArgs } from "./codex-app-server"
+import type { HarnessEvent, HarnessToolRequest, HarnessTurn } from "./harness-types"
+
+export interface StartCodexExecSessionArgs {
+  chatId: string
+  cwd: string
+  model: string
+  serviceTier?: ServiceTier
+  sessionToken: string | null
+  pendingForkSessionToken?: string | null
+  permissionMode?: CodexPermissionMode
+}
+
+export interface StartCodexExecTurnArgs {
+  chatId: string
+  model: string
+  effort?: CodexReasoningEffort
+  serviceTier?: ServiceTier
+  content: string
+  planMode: boolean
+  permissionMode?: CodexPermissionMode
+  onToolRequest: (request: HarnessToolRequest) => Promise<unknown>
+}
+
+export interface GenerateCodexExecStructuredArgs {
+  cwd: string
+  prompt: string
+  model?: string
+  effort?: CodexReasoningEffort
+  serviceTier?: ServiceTier
+}
 
 interface CodexExecProcess {
   stdin: Writable
@@ -30,6 +59,7 @@ interface SessionContext {
   serviceTier?: ServiceTier
   sessionToken: string | null
   pendingTurn: PendingTurn | null
+  permissionMode: CodexPermissionMode | undefined
   closed: boolean
 }
 
@@ -89,6 +119,30 @@ function parseJsonLine(line: string): Record<string, unknown> | null {
 
 function reasoningConfig(effort?: CodexReasoningEffort) {
   return effort ? [`model_reasoning_effort="${effort}"`] : []
+}
+
+function permissionConfig(permissionMode: CodexPermissionMode | undefined) {
+  switch (permissionMode) {
+    case "request":
+      return [
+        'sandbox_mode="workspace-write"',
+        'approval_policy="on-request"',
+        'approvals_reviewer="user"',
+      ]
+    case "auto":
+      return [
+        'sandbox_mode="workspace-write"',
+        'approval_policy="on-request"',
+        'approvals_reviewer="auto_review"',
+      ]
+    case "full":
+    default:
+      return [
+        'sandbox_mode="danger-full-access"',
+        'approval_policy="never"',
+        'approvals_reviewer="user"',
+      ]
+  }
 }
 
 function normalizeExecUsage(value: unknown): ContextWindowUsageSnapshot | null {
@@ -208,12 +262,13 @@ export class CodexExecManager {
       }) as unknown as CodexExecProcess)
   }
 
-  async startSession(args: StartCodexSessionArgs): Promise<string | undefined> {
+  async startSession(args: StartCodexExecSessionArgs): Promise<string | undefined> {
     const existing = this.sessions.get(args.chatId)
     if (existing && !existing.closed && existing.cwd === args.cwd && !args.pendingForkSessionToken) {
       existing.model = args.model
       existing.serviceTier = args.serviceTier
       existing.sessionToken = args.sessionToken
+      existing.permissionMode = args.permissionMode
       return existing.sessionToken ?? undefined
     }
 
@@ -226,6 +281,7 @@ export class CodexExecManager {
       cwd: args.cwd,
       model: args.model,
       serviceTier: args.serviceTier,
+      permissionMode: args.permissionMode,
       // codex exec has exact resume, but no confirmed fork equivalent. A fork
       // request starts a fresh exec session; Kanna clears the pending fork once
       // the new thread id arrives.
@@ -237,7 +293,7 @@ export class CodexExecManager {
     return context.sessionToken ?? undefined
   }
 
-  async startTurn(args: StartCodexTurnArgs): Promise<HarnessTurn> {
+  async startTurn(args: StartCodexExecTurnArgs): Promise<HarnessTurn> {
     const context = this.requireSession(args.chatId)
     if (context.pendingTurn) {
       throw new Error("Codex exec turn is already running")
@@ -285,7 +341,7 @@ export class CodexExecManager {
     }
   }
 
-  async generateStructured(args: GenerateStructuredArgs): Promise<string | null> {
+  async generateStructured(args: GenerateCodexExecStructuredArgs): Promise<string | null> {
     const chatId = `quick-${randomUUID()}`
     let turn: HarnessTurn | null = null
     let assistantText = ""
@@ -345,8 +401,11 @@ export class CodexExecManager {
     }
   }
 
-  private buildCommandArgs(context: SessionContext, args: StartCodexTurnArgs) {
-    const configArgs = reasoningConfig(args.effort).flatMap((config) => ["-c", config])
+  private buildCommandArgs(context: SessionContext, args: StartCodexExecTurnArgs) {
+    const configArgs = [
+      ...reasoningConfig(args.effort),
+      ...permissionConfig(args.permissionMode ?? context.permissionMode),
+    ].flatMap((config) => ["-c", config])
     if (context.sessionToken) {
       return [
         "exec",
@@ -369,8 +428,6 @@ export class CodexExecManager {
       "-m",
       args.model,
       ...configArgs,
-      "--sandbox",
-      "danger-full-access",
       "--skip-git-repo-check",
       "-",
     ]

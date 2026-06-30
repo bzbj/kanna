@@ -1,9 +1,13 @@
 import { query, type CanUseTool, type PermissionResult, type Query, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk"
 import { homedir } from "node:os"
 import type {
+  AgentPermissionMode,
   AgentProvider,
   ChatAttachment,
+  ClaudePermissionMode,
   ContextWindowUsageSnapshot,
+  CodexPermissionMode,
+  CodexReasoningEffort,
   ModelOptions,
   NormalizedToolCall,
   PendingToolSnapshot,
@@ -11,12 +15,12 @@ import type {
   QueuedChatMessage,
   TranscriptEntry,
 } from "../shared/types"
+import { normalizeClaudePermissionMode, normalizeCodexPermissionMode } from "../shared/types"
 import { normalizeToolCall } from "../shared/tools"
 import type { ClientCommand } from "../shared/protocol"
 import { EventStore } from "./event-store"
 import type { AnalyticsReporter } from "./analytics"
 import { NoopAnalyticsReporter } from "./analytics"
-import { CodexAppServerManager } from "./codex-app-server"
 import { CodexExecManager } from "./codex-exec"
 import { type GenerateChatTitleResult, generateTitleForChatDetailed } from "./generate-title"
 import type { HarnessEvent, HarnessToolRequest, HarnessTurn } from "./harness-types"
@@ -66,9 +70,10 @@ interface ActiveTurn {
   effort?: string
   serviceTier?: "fast"
   planMode: boolean
+  permissionMode: AgentPermissionMode
   status: KannaStatus
   pendingTool: PendingToolRequest | null
-  postToolFollowUp: { content: string; planMode: boolean } | null
+  postToolFollowUp: { content: string; planMode: boolean; permissionMode: AgentPermissionMode } | null
   hasFinalResult: boolean
   cancelRequested: boolean
   cancelRecorded: boolean
@@ -84,7 +89,7 @@ interface ClaudeSessionHandle {
   close: () => void
   sendPrompt: (content: string) => Promise<void>
   setModel: (model: string) => Promise<void>
-  setPermissionMode: (planMode: boolean) => Promise<void>
+  setPermissionMode: (planMode: boolean, permissionMode: ClaudePermissionMode) => Promise<void>
   supportedModels?: () => Promise<ClaudeSdkModelInfo[]>
 }
 
@@ -96,16 +101,43 @@ interface ClaudeSessionState {
   model: string
   effort?: string
   planMode: boolean
+  permissionMode: ClaudePermissionMode
   sessionToken: string | null
   accountInfoLoaded: boolean
   nextPromptSeq: number
   pendingPromptSeqs: number[]
 }
 
-type CodexManager = Pick<
-  CodexAppServerManager,
-  "startSession" | "startTurn" | "generateStructured" | "stopSession" | "stopAll"
->
+interface CodexManager {
+  startSession(args: {
+    chatId: string
+    cwd: string
+    model: string
+    serviceTier?: "fast"
+    sessionToken: string | null
+    pendingForkSessionToken?: string | null
+    permissionMode?: CodexPermissionMode
+  }): Promise<string | undefined>
+  startTurn(args: {
+    chatId: string
+    model: string
+    effort?: CodexReasoningEffort
+    serviceTier?: "fast"
+    content: string
+    planMode: boolean
+    permissionMode?: CodexPermissionMode
+    onToolRequest: (request: HarnessToolRequest) => Promise<unknown>
+  }): Promise<HarnessTurn>
+  generateStructured(args: {
+    cwd: string
+    prompt: string
+    model?: string
+    effort?: CodexReasoningEffort
+    serviceTier?: "fast"
+  }): Promise<string | null>
+  stopSession(chatId: string): void
+  stopAll(): void
+}
 
 interface AgentCoordinatorArgs {
   store: EventStore
@@ -118,6 +150,7 @@ interface AgentCoordinatorArgs {
     model: string
     effort?: string
     planMode: boolean
+    permissionMode: ClaudePermissionMode
     sessionToken: string | null
     forkSession: boolean
     onToolRequest: (request: HarnessToolRequest) => Promise<unknown>
@@ -142,9 +175,7 @@ function logClaudeSteer(stage: string, details?: Record<string, unknown>) {
 }
 
 function createDefaultCodexManager(): CodexManager {
-  return process.env.KANNA_CODEX_BACKEND === "exec"
-    ? new CodexExecManager()
-    : new CodexAppServerManager()
+  return new CodexExecManager()
 }
 
 const STEERED_MESSAGE_PREFIX = `<system-message>
@@ -157,6 +188,7 @@ interface SendMessageOptions {
   modelOptions?: ModelOptions
   effort?: string
   planMode?: boolean
+  permissionMode?: AgentPermissionMode
 }
 
 function timestamped<T extends Omit<TranscriptEntry, "_id" | "createdAt">>(
@@ -571,6 +603,7 @@ async function startClaudeSession(args: {
   model: string
   effort?: string
   planMode: boolean
+  permissionMode: ClaudePermissionMode
   sessionToken: string | null
   forkSession: boolean
   onToolRequest: (request: HarnessToolRequest) => Promise<unknown>
@@ -640,7 +673,8 @@ async function startClaudeSession(args: {
       effort: args.effort as "low" | "medium" | "high" | "max" | undefined,
       resume: args.sessionToken ?? undefined,
       forkSession: args.forkSession,
-      permissionMode: args.planMode ? "plan" : "acceptEdits",
+      permissionMode: args.planMode ? "plan" : args.permissionMode,
+      allowDangerouslySkipPermissions: args.permissionMode === "bypassPermissions",
       canUseTool,
       tools: [...CLAUDE_TOOLSET],
       settingSources: ["user", "project", "local"],
@@ -676,8 +710,8 @@ async function startClaudeSession(args: {
     setModel: async (model: string) => {
       await q.setModel(model)
     },
-    setPermissionMode: async (planMode: boolean) => {
-      await q.setPermissionMode(planMode ? "plan" : "acceptEdits")
+    setPermissionMode: async (planMode: boolean, permissionMode: ClaudePermissionMode) => {
+      await q.setPermissionMode(planMode ? "plan" : permissionMode)
     },
     supportedModels: async () => await q.supportedModels(),
     close: () => {
@@ -793,6 +827,7 @@ export class AgentCoordinator {
         effort: modelOptions.reasoningEffort,
         serviceTier: undefined,
         planMode: catalog.supportsPlanMode ? Boolean(options.planMode) : false,
+        permissionMode: normalizeClaudePermissionMode(options.permissionMode),
       }
     }
 
@@ -802,6 +837,7 @@ export class AgentCoordinator {
       effort: modelOptions.reasoningEffort,
       serviceTier: codexServiceTierFromModelOptions(modelOptions),
       planMode: catalog.supportsPlanMode ? Boolean(options.planMode) : false,
+      permissionMode: normalizeCodexPermissionMode(options.permissionMode),
     }
   }
 
@@ -813,6 +849,7 @@ export class AgentCoordinator {
       model: options?.model,
       modelOptions: options?.modelOptions,
       planMode: options?.planMode,
+      permissionMode: options?.permissionMode,
     })
     this.emitStateChange(chatId)
     return queued
@@ -832,6 +869,7 @@ export class AgentCoordinator {
       effort: settings.effort,
       serviceTier: settings.serviceTier,
       planMode: settings.planMode,
+      permissionMode: settings.permissionMode,
       appendUserPrompt: true,
       steered: options?.steered,
     })
@@ -856,6 +894,7 @@ export class AgentCoordinator {
     effort?: string
     serviceTier?: "fast"
     planMode: boolean
+    permissionMode: AgentPermissionMode
     appendUserPrompt: boolean
     steered?: boolean
     profile?: SendToStartingProfile | null
@@ -865,6 +904,7 @@ export class AgentCoordinator {
       provider: args.provider,
       appendUserPrompt: args.appendUserPrompt,
       planMode: args.planMode,
+      permissionMode: args.permissionMode,
     })
 
     // Close any lingering draining stream before starting a new turn.
@@ -960,6 +1000,7 @@ export class AgentCoordinator {
         model: args.model,
         effort: args.effort,
         planMode: args.planMode,
+        permissionMode: normalizeClaudePermissionMode(args.permissionMode),
         sessionToken: chat.pendingForkSessionToken ?? chat.sessionToken,
         forkSession: Boolean(chat.pendingForkSessionToken),
         onToolRequest,
@@ -982,6 +1023,7 @@ export class AgentCoordinator {
         serviceTier: args.serviceTier,
         sessionToken: chat.sessionToken,
         pendingForkSessionToken: chat.pendingForkSessionToken,
+        permissionMode: normalizeCodexPermissionMode(args.permissionMode),
       })
       if (chat.pendingForkSessionToken && sessionToken) {
         await this.store.setPendingForkSessionToken(args.chatId, null)
@@ -998,6 +1040,7 @@ export class AgentCoordinator {
         effort: args.effort as any,
         serviceTier: args.serviceTier,
         planMode: args.planMode,
+        permissionMode: normalizeCodexPermissionMode(args.permissionMode),
         onToolRequest,
       })
       logSendToStartingProfile(args.profile, "start_turn.provider_boot.ready", {
@@ -1015,6 +1058,7 @@ export class AgentCoordinator {
       effort: args.effort,
       serviceTier: args.serviceTier,
       planMode: args.planMode,
+      permissionMode: args.permissionMode,
       status: args.provider === "claude" ? "running" : "starting",
       pendingTool: null,
       postToolFollowUp: null,
@@ -1087,13 +1131,14 @@ export class AgentCoordinator {
     model: string
     effort?: string
     planMode: boolean
+    permissionMode: ClaudePermissionMode
     sessionToken: string | null
     forkSession: boolean
     onToolRequest: (request: HarnessToolRequest) => Promise<unknown>
   }): Promise<HarnessTurn> {
     let session = this.claudeSessions.get(args.chatId)
 
-    if (!session || session.localPath !== args.localPath || session.effort !== args.effort || args.forkSession) {
+    if (!session || session.localPath !== args.localPath || session.effort !== args.effort || session.permissionMode !== args.permissionMode || args.forkSession) {
       if (session) {
         session.session.close()
         this.claudeSessions.delete(args.chatId)
@@ -1104,6 +1149,7 @@ export class AgentCoordinator {
         model: args.model,
         effort: args.effort,
         planMode: args.planMode,
+        permissionMode: args.permissionMode,
         sessionToken: args.sessionToken,
         forkSession: args.forkSession,
         onToolRequest: args.onToolRequest,
@@ -1118,6 +1164,7 @@ export class AgentCoordinator {
         model: args.model,
         effort: args.effort,
         planMode: args.planMode,
+        permissionMode: args.permissionMode,
         sessionToken: args.sessionToken,
         accountInfoLoaded: false,
         nextPromptSeq: 0,
@@ -1131,7 +1178,7 @@ export class AgentCoordinator {
         session.model = args.model
       }
       if (session.planMode !== args.planMode) {
-        await session.session.setPermissionMode(args.planMode)
+        await session.session.setPermissionMode(args.planMode, args.permissionMode)
         session.planMode = args.planMode
       }
     }
@@ -1180,6 +1227,7 @@ export class AgentCoordinator {
         modelOptions: command.modelOptions,
         effort: command.effort,
         planMode: command.planMode,
+        permissionMode: command.permissionMode,
       })
       return { chatId, queuedMessageId: queuedMessage.id, queued: true as const }
     }
@@ -1196,6 +1244,7 @@ export class AgentCoordinator {
       effort: settings.effort,
       serviceTier: settings.serviceTier,
       planMode: settings.planMode,
+      permissionMode: settings.permissionMode,
       appendUserPrompt: true,
       profile,
     })
@@ -1475,6 +1524,7 @@ export class AgentCoordinator {
             effort: active.effort,
             serviceTier: active.serviceTier,
             planMode: active.postToolFollowUp.planMode,
+            permissionMode: active.postToolFollowUp.permissionMode,
             appendUserPrompt: false,
           })
         } catch (error) {
@@ -1623,12 +1673,14 @@ export class AgentCoordinator {
                 ? `Proceed with the approved plan. Additional guidance: ${result.message}`
                 : "Proceed with the approved plan.",
               planMode: false,
+              permissionMode: active.permissionMode,
             }
           : {
               content: result.message
                 ? `Revise the plan using this feedback: ${result.message}`
                 : "Revise the plan using this feedback.",
               planMode: true,
+              permissionMode: active.permissionMode,
             }
       }
     }

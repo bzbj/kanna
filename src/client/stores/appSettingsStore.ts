@@ -1,5 +1,10 @@
 import { create } from "zustand"
-import type { AppSettingsPatch, AppSettingsSnapshot } from "../../shared/types"
+import {
+  normalizeClaudePermissionMode,
+  normalizeCodexPermissionMode,
+  type AppSettingsPatch,
+  type AppSettingsSnapshot,
+} from "../../shared/types"
 
 type AppSettingsHydrationStatus = "idle" | "loading" | "ready" | "error"
 
@@ -30,6 +35,9 @@ export function mergeAppSettingsPatch(
       claude: {
         ...settings.providerDefaults.claude,
         ...patch.providerDefaults?.claude,
+        permissionMode: normalizeClaudePermissionMode(
+          patch.providerDefaults?.claude?.permissionMode ?? settings.providerDefaults.claude.permissionMode
+        ),
         modelOptions: {
           ...settings.providerDefaults.claude.modelOptions,
           ...patch.providerDefaults?.claude?.modelOptions,
@@ -38,6 +46,9 @@ export function mergeAppSettingsPatch(
       codex: {
         ...settings.providerDefaults.codex,
         ...patch.providerDefaults?.codex,
+        permissionMode: normalizeCodexPermissionMode(
+          patch.providerDefaults?.codex?.permissionMode ?? settings.providerDefaults.codex.permissionMode
+        ),
         modelOptions: {
           ...settings.providerDefaults.codex.modelOptions,
           ...patch.providerDefaults?.codex?.modelOptions,

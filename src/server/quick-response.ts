@@ -3,7 +3,6 @@ import { homedir } from "node:os"
 import OpenAI from "openai"
 import { getDataRootDir } from "../shared/branding"
 import type { LlmProviderSnapshot } from "../shared/types"
-import { CodexAppServerManager } from "./codex-app-server"
 import { CodexExecManager } from "./codex-exec"
 import { readLlmProviderSnapshot } from "./llm-provider"
 
@@ -35,7 +34,7 @@ interface QuickResponseAdapterArgs {
   runCodexStructured?: (args: Omit<StructuredQuickResponseArgs<unknown>, "parse">) => Promise<unknown | null>
 }
 
-type CodexStructuredManager = Pick<CodexAppServerManager, "generateStructured">
+type CodexStructuredManager = Pick<CodexExecManager, "generateStructured">
 
 export interface StructuredQuickResponseFailure {
   provider: "openai" | "claude" | "codex"
@@ -183,9 +182,7 @@ export async function runCodexStructured(
 }
 
 export function createDefaultQuickResponseCodexManager(): CodexStructuredManager {
-  return process.env.KANNA_CODEX_BACKEND === "exec"
-    ? new CodexExecManager()
-    : new CodexAppServerManager()
+  return new CodexExecManager()
 }
 
 export class QuickResponseAdapter {

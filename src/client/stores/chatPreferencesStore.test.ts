@@ -28,6 +28,7 @@ describe("migrateChatPreferencesState", () => {
       model: "claude-opus-4-8",
       modelOptions: { reasoningEffort: "max", contextWindow: "1m" },
       planMode: false,
+      permissionMode: "acceptEdits",
     })
   })
 
@@ -61,11 +62,13 @@ describe("migrateChatPreferencesState", () => {
           model: "claude-opus-4-8",
           modelOptions: { reasoningEffort: "low", contextWindow: "1m" },
           planMode: true,
+          permissionMode: "acceptEdits",
         },
         codex: {
           model: "gpt-5.5",
           modelOptions: { reasoningEffort: "minimal", fastMode: true },
           planMode: false,
+          permissionMode: "full",
         },
       },
       chatStates: {},
@@ -74,6 +77,7 @@ describe("migrateChatPreferencesState", () => {
         model: "claude-sonnet-4-6",
         modelOptions: { reasoningEffort: "high", contextWindow: "1m" },
         planMode: false,
+        permissionMode: "acceptEdits",
       },
     })
   })
@@ -104,6 +108,7 @@ describe("migrateChatPreferencesState", () => {
       model: "claude-haiku-4-5-20251001",
       modelOptions: { reasoningEffort: "high", contextWindow: "200k" },
       planMode: false,
+      permissionMode: "acceptEdits",
     })
   })
 
@@ -123,6 +128,7 @@ describe("migrateChatPreferencesState", () => {
       model: "gpt-5.5",
       modelOptions: { reasoningEffort: "low", fastMode: true },
       planMode: false,
+      permissionMode: "full",
     })
   })
 
@@ -156,18 +162,21 @@ describe("migrateChatPreferencesState", () => {
       model: "gpt-5.5",
       modelOptions: { reasoningEffort: "low", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
     expect(migrated.chatStates.chatA).toEqual({
       provider: "codex",
       model: "gpt-5.5",
       modelOptions: { reasoningEffort: "medium", fastMode: false },
       planMode: false,
+      permissionMode: "full",
     })
     expect(migrated.legacyComposerState).toEqual({
       provider: "codex",
       model: "gpt-5.5",
       modelOptions: { reasoningEffort: "xhigh", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
   })
 })
@@ -176,8 +185,9 @@ describe("chat preference store", () => {
   test("starts with gpt-5.5 as the default Codex model", () => {
     expect(INITIAL_STATE.providerDefaults.codex).toEqual({
       model: "gpt-5.5",
-      modelOptions: { reasoningEffort: "high", fastMode: false },
+      modelOptions: { reasoningEffort: "xhigh", fastMode: true },
       planMode: false,
+      permissionMode: "full",
     })
   })
 
@@ -187,6 +197,7 @@ describe("chat preference store", () => {
       model: "gpt-5.3-codex",
       modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
 
     useChatPreferencesStore.getState().setProviderDefaultModel("codex", "gpt-5.3-codex-spark")
@@ -201,6 +212,7 @@ describe("chat preference store", () => {
       model: "gpt-5.3-codex",
       modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
   })
 
@@ -226,12 +238,14 @@ describe("chat preference store", () => {
       model: "claude-sonnet-4-6",
       modelOptions: { reasoningEffort: "low", contextWindow: "1m" },
       planMode: true,
+      permissionMode: "acceptEdits",
     })
     expect(store.getComposerState("chat-b")).toEqual({
       provider: "codex",
       model: "gpt-5.3-codex",
       modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
   })
 
@@ -251,6 +265,7 @@ describe("chat preference store", () => {
       model: "claude-haiku-4-5-20251001",
       modelOptions: { reasoningEffort: "high", contextWindow: "200k" },
       planMode: false,
+      permissionMode: "acceptEdits",
     })
   })
 
@@ -263,6 +278,7 @@ describe("chat preference store", () => {
           model: "gpt-5.3-codex",
           modelOptions: { reasoningEffort: "minimal", fastMode: true },
           planMode: true,
+          permissionMode: "full",
         },
       },
     })
@@ -274,6 +290,7 @@ describe("chat preference store", () => {
       model: "gpt-5.3-codex",
       modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
   })
 
@@ -287,6 +304,7 @@ describe("chat preference store", () => {
           model: "gpt-5.3-codex-spark",
           modelOptions: { reasoningEffort: "minimal", fastMode: true },
           planMode: true,
+          permissionMode: "full",
         },
       },
     })
@@ -298,6 +316,7 @@ describe("chat preference store", () => {
       model: "gpt-5.3-codex-spark",
       modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
   })
 
@@ -311,6 +330,7 @@ describe("chat preference store", () => {
           model: "gpt-5.3-codex-spark",
           modelOptions: { reasoningEffort: "minimal", fastMode: true },
           planMode: true,
+          permissionMode: "full",
         },
       },
       legacyComposerState: null,
@@ -323,6 +343,7 @@ describe("chat preference store", () => {
       model: "gpt-5.3-codex-spark",
       modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
   })
 
@@ -336,6 +357,7 @@ describe("chat preference store", () => {
         model: "gpt-5.3-codex-spark",
         modelOptions: { reasoningEffort: "minimal", fastMode: true },
         planMode: true,
+        permissionMode: "full",
       },
     })
 
@@ -344,6 +366,7 @@ describe("chat preference store", () => {
       model: "gpt-5.3-codex-spark",
       modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
   })
 
@@ -357,6 +380,7 @@ describe("chat preference store", () => {
         model: "gpt-5.3-codex-spark",
         modelOptions: { reasoningEffort: "minimal", fastMode: true },
         planMode: true,
+        permissionMode: "full",
       },
     })
 
@@ -365,6 +389,7 @@ describe("chat preference store", () => {
       model: "gpt-5.3-codex-spark",
       modelOptions: { reasoningEffort: "minimal", fastMode: true },
       planMode: true,
+      permissionMode: "full",
     })
   })
 
@@ -376,6 +401,7 @@ describe("chat preference store", () => {
       model: "gpt-5.5",
       modelOptions: { reasoningEffort: "low", fastMode: true },
       planMode: false,
+      permissionMode: "full",
     })
     store.syncProviderDefaults("last_used", {
       ...INITIAL_STATE.providerDefaults,
@@ -391,6 +417,7 @@ describe("chat preference store", () => {
       model: "gpt-5.5",
       modelOptions: { reasoningEffort: "low", fastMode: true },
       planMode: false,
+      permissionMode: "full",
     })
   })
 
@@ -416,6 +443,7 @@ describe("chat preference store", () => {
       model: "gpt-5.3-codex",
       modelOptions: { reasoningEffort: "low", fastMode: false },
       planMode: true,
+      permissionMode: "full",
     })
   })
 })

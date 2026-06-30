@@ -2,6 +2,7 @@ import type {
   AppSettingsSnapshot,
   AppSettingsPatch,
   AgentProvider,
+  AgentPermissionMode,
   ChatAttachment,
   ChatDiffSnapshot,
   ChatHistoryPage,
@@ -89,6 +90,7 @@ export type ClientCommand =
   | { type: "settings.writeAppSettings"; analyticsEnabled: boolean }
   | { type: "settings.writeAppSettingsPatch"; patch: AppSettingsPatch }
   | { type: "settings.readLlmProvider" }
+  | { type: "settings.readSubscriptionUsage" }
   | { type: "skills.search"; query: string; limit?: number }
   | { type: "skills.install"; source: string; skillId: string }
   | { type: "skills.uninstall"; skillId: string }
@@ -135,6 +137,7 @@ export type ClientCommand =
       modelOptions?: ModelOptions
       effort?: string
       planMode?: boolean
+      permissionMode?: AgentPermissionMode
     }
   | { type: "chat.refreshDiffs"; chatId: string }
   | { type: "chat.initGit"; chatId: string }
@@ -223,6 +226,7 @@ export type ClientCommand =
       model?: string
       modelOptions?: ModelOptions
       planMode?: boolean
+      permissionMode?: AgentPermissionMode
     }
   | {
       type: "message.steer"

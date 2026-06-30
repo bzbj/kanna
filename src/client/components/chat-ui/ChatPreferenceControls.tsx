@@ -1,14 +1,20 @@
 import { useState, type ComponentType, type SVGProps } from "react"
-import { Box, Brain, Gauge, ListTodo, LockOpen, SquareMenu, SquareMinus } from "lucide-react"
+import { Bot, Box, Brain, Gauge, ListTodo, LockOpen, Shield, ShieldCheck, ShieldQuestion, ShieldX, SquareMenu, SquareMinus } from "lucide-react"
 import {
   CLAUDE_CONTEXT_WINDOW_OPTIONS,
+  CLAUDE_PERMISSION_OPTIONS,
   CLAUDE_REASONING_OPTIONS,
+  CODEX_PERMISSION_OPTIONS,
   CODEX_REASONING_OPTIONS,
+  DEFAULT_CLAUDE_PERMISSION_MODE,
+  DEFAULT_CODEX_PERMISSION_MODE,
   type AgentProvider,
   type ClaudeContextWindow,
   type ClaudeModelOptions,
+  type ClaudePermissionMode,
   type ClaudeReasoningEffort,
   type CodexModelOptions,
+  type CodexPermissionMode,
   type CodexReasoningEffort,
   type ProviderCatalogEntry,
   supportsClaudeMaxReasoningEffort,
@@ -138,6 +144,10 @@ export type ModelOptionChange =
   | { type: "codexReasoningEffort"; effort: CodexReasoningEffort }
   | { type: "fastMode"; fastMode: boolean }
 
+export type PermissionModeChange =
+  | { provider: "claude"; permissionMode: ClaudePermissionMode }
+  | { provider: "codex"; permissionMode: CodexPermissionMode }
+
 interface ChatPreferenceControlsProps {
   availableProviders: ProviderCatalogEntry[]
   selectedProvider: AgentProvider
@@ -151,6 +161,8 @@ interface ChatPreferenceControlsProps {
   onModelOptionChange: (change: ModelOptionChange) => void
   planMode?: boolean
   onPlanModeChange?: (planMode: boolean) => void
+  permissionMode?: ClaudePermissionMode | CodexPermissionMode
+  onPermissionModeChange?: (change: PermissionModeChange) => void
   includePlanMode?: boolean
   className?: string
 }
@@ -168,6 +180,8 @@ export function ChatPreferenceControls({
   onModelOptionChange,
   planMode = false,
   onPlanModeChange,
+  permissionMode,
+  onPermissionModeChange,
   includePlanMode = true,
   className,
 }: ChatPreferenceControlsProps) {
@@ -180,6 +194,28 @@ export function ChatPreferenceControls({
   const contextWindowOptions = providerConfig.models.find((candidate) => candidate.id === model)?.contextWindowOptions ?? []
   const selectedContextWindow = claudeModelOptions?.contextWindow ?? CLAUDE_CONTEXT_WINDOW_OPTIONS[0].id
   const ContextWindowIcon = selectedContextWindow === "1m" ? SquareMenu : SquareMinus
+  const permissionOptions = selectedProvider === "claude" ? CLAUDE_PERMISSION_OPTIONS : CODEX_PERMISSION_OPTIONS
+  const defaultPermissionMode = selectedProvider === "claude" ? DEFAULT_CLAUDE_PERMISSION_MODE : DEFAULT_CODEX_PERMISSION_MODE
+  const selectedPermission = permissionOptions.find((option) => option.id === (permissionMode ?? defaultPermissionMode)) ?? permissionOptions[0]
+
+  function permissionIcon(id: string, className = "h-4 w-4 text-muted-foreground") {
+    switch (id) {
+      case "request":
+      case "default":
+        return <ShieldQuestion className={className} />
+      case "auto":
+        return <Bot className={className} />
+      case "full":
+      case "bypassPermissions":
+        return <LockOpen className={className} />
+      case "acceptEdits":
+        return <ShieldCheck className={className} />
+      case "dontAsk":
+        return <ShieldX className={className} />
+      default:
+        return <Shield className={className} />
+    }
+  }
 
   return (
     <div className={cn("flex md:justify-center items-center gap-0.5", className)}>
@@ -353,12 +389,48 @@ export function ChatPreferenceControls({
         </InputPopover>
       ) : null}
 
+      {onPermissionModeChange ? (
+        <InputPopover
+          trigger={(
+            <>
+              {permissionIcon(selectedPermission.id, "h-3.5 w-3.5")}
+              <span>{selectedPermission.label}</span>
+            </>
+          )}
+          triggerClassName={
+            selectedPermission.id === "full" || selectedPermission.id === "bypassPermissions"
+              ? "text-amber-500 dark:text-amber-400"
+              : selectedPermission.id === "auto"
+                ? "text-emerald-500 dark:text-emerald-400"
+                : undefined
+          }
+        >
+          {(close) => permissionOptions.map((option) => (
+            <PopoverMenuItem
+              key={option.id}
+              onClick={() => {
+                if (selectedProvider === "claude") {
+                  onPermissionModeChange({ provider: "claude", permissionMode: option.id as ClaudePermissionMode })
+                } else {
+                  onPermissionModeChange({ provider: "codex", permissionMode: option.id as CodexPermissionMode })
+                }
+                close()
+              }}
+              selected={selectedPermission.id === option.id}
+              icon={permissionIcon(option.id)}
+              label={option.label}
+              description={option.description}
+            />
+          ))}
+        </InputPopover>
+      ) : null}
+
       {showPlanMode ? (
         <InputPopover
           trigger={(
             <>
-              {planMode ? <ListTodo className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
-              <span>{planMode ? "Plan Mode" : "Full Access"}</span>
+              {planMode ? <ListTodo className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+              <span>{planMode ? "Plan Mode" : "Run Mode"}</span>
             </>
           )}
           triggerClassName={planMode ? "text-blue-400 dark:text-blue-300" : undefined}
@@ -371,9 +443,9 @@ export function ChatPreferenceControls({
                   close()
                 }}
                 selected={!planMode}
-                icon={<LockOpen className="h-4 w-4 text-muted-foreground" />}
-                label="Full Access"
-                description="Execution without approval"
+                icon={<ShieldCheck className="h-4 w-4 text-muted-foreground" />}
+                label="Run Mode"
+                description="Use the selected permission mode"
               />
               <PopoverMenuItem
                 onClick={() => {

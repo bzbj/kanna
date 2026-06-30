@@ -42,14 +42,16 @@ function expectedSettingsSnapshot(filePath: string, overrides: Partial<AppSettin
           contextWindow: "200k",
         },
         planMode: false,
+        permissionMode: "acceptEdits",
       },
       codex: {
         model: "gpt-5.5",
         modelOptions: {
-          reasoningEffort: "high",
-          fastMode: false,
+          reasoningEffort: "xhigh",
+          fastMode: true,
         },
         planMode: false,
+        permissionMode: "full",
       },
     },
     warning: null,

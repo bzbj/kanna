@@ -48,6 +48,36 @@ export interface SkillUninstallResult {
   stderr: string
 }
 
+export type SubscriptionUsageProvider = "codex" | "claude"
+export type SubscriptionUsageWindowId = "five_hour" | "weekly"
+export type SubscriptionUsageStatus = "available" | "unavailable" | "error" | "stale"
+
+export interface SubscriptionUsageWindow {
+  id: SubscriptionUsageWindowId
+  label: string
+  usedPercent: number | null
+  windowMinutes?: number
+  resetsAt?: number | null
+  resetsAtText?: string | null
+}
+
+export interface SubscriptionUsageProviderSnapshot {
+  provider: SubscriptionUsageProvider
+  label: string
+  status: SubscriptionUsageStatus
+  planType?: string | null
+  accountEmail?: string | null
+  source: string
+  updatedAt: number | null
+  error: string | null
+  windows: SubscriptionUsageWindow[]
+}
+
+export interface SubscriptionUsageSnapshot {
+  generatedAt: number
+  providers: SubscriptionUsageProviderSnapshot[]
+}
+
 export interface InstalledSkillSummary {
   name: string
   source: string
@@ -124,6 +154,7 @@ export interface QueuedChatMessage {
   model?: string
   modelOptions?: ModelOptions
   planMode?: boolean
+  permissionMode?: AgentPermissionMode
 }
 
 export interface InternalUserAttachmentsData {
@@ -144,6 +175,12 @@ export interface ProviderModelOption {
 export interface ProviderEffortOption {
   id: string
   label: string
+}
+
+export interface ProviderPermissionOption<TPermissionMode extends string = string> {
+  id: TPermissionMode
+  label: string
+  description: string
 }
 
 export interface ProviderContextWindowOption {
@@ -171,6 +208,24 @@ export type CodexReasoningEffort = (typeof CODEX_REASONING_OPTIONS)[number]["id"
 export type ClaudeContextWindow = "200k" | "1m"
 export type ServiceTier = "fast"
 
+export const CLAUDE_PERMISSION_OPTIONS = [
+  { id: "default", label: "Default Approval", description: "Use Claude Code's standard permission prompts." },
+  { id: "acceptEdits", label: "Accept Edits", description: "Auto-accept file edits while keeping other prompts." },
+  { id: "auto", label: "Auto Approve", description: "Let Claude Code classify permission prompts automatically." },
+  { id: "dontAsk", label: "Deny Unapproved", description: "Do not ask; deny actions that are not already allowed." },
+  { id: "bypassPermissions", label: "Bypass Permissions", description: "Bypass permission checks for trusted local work." },
+] as const satisfies readonly ProviderPermissionOption[]
+
+export const CODEX_PERMISSION_OPTIONS = [
+  { id: "request", label: "Request Approval", description: "Work in the sandbox and ask before crossing it." },
+  { id: "auto", label: "Auto Approve", description: "Work in the sandbox and route approvals to auto-review." },
+  { id: "full", label: "Full Access", description: "Run without sandbox restrictions or approval prompts." },
+] as const satisfies readonly ProviderPermissionOption[]
+
+export type ClaudePermissionMode = (typeof CLAUDE_PERMISSION_OPTIONS)[number]["id"]
+export type CodexPermissionMode = (typeof CODEX_PERMISSION_OPTIONS)[number]["id"]
+export type AgentPermissionMode = ClaudePermissionMode | CodexPermissionMode
+
 export interface ClaudeModelOptions {
   reasoningEffort: ClaudeReasoningEffort
   contextWindow: ClaudeContextWindow
@@ -186,15 +241,16 @@ export interface ProviderModelOptionsByProvider {
   codex: CodexModelOptions
 }
 
-export interface ProviderPreference<TModelOptions> {
+export interface ProviderPreference<TModelOptions, TPermissionMode extends string = string> {
   model: string
   modelOptions: TModelOptions
   planMode: boolean
+  permissionMode?: TPermissionMode
 }
 
 export type ChatProviderPreferences = {
-  claude: ProviderPreference<ClaudeModelOptions>
-  codex: ProviderPreference<CodexModelOptions>
+  claude: ProviderPreference<ClaudeModelOptions, ClaudePermissionMode>
+  codex: ProviderPreference<CodexModelOptions, CodexPermissionMode>
 }
 
 export type ModelOptions = Partial<{
@@ -207,9 +263,12 @@ export const DEFAULT_CLAUDE_MODEL_OPTIONS = {
 } as const satisfies ClaudeModelOptions
 
 export const DEFAULT_CODEX_MODEL_OPTIONS = {
-  reasoningEffort: "high",
-  fastMode: false,
+  reasoningEffort: "xhigh",
+  fastMode: true,
 } as const satisfies CodexModelOptions
+
+export const DEFAULT_CLAUDE_PERMISSION_MODE: ClaudePermissionMode = "acceptEdits"
+export const DEFAULT_CODEX_PERMISSION_MODE: CodexPermissionMode = "full"
 
 export function isClaudeReasoningEffort(value: unknown): value is ClaudeReasoningEffort {
   return CLAUDE_REASONING_OPTIONS.some((option) => option.id === value)
@@ -217,6 +276,22 @@ export function isClaudeReasoningEffort(value: unknown): value is ClaudeReasonin
 
 export function isCodexReasoningEffort(value: unknown): value is CodexReasoningEffort {
   return CODEX_REASONING_OPTIONS.some((option) => option.id === value)
+}
+
+export function isClaudePermissionMode(value: unknown): value is ClaudePermissionMode {
+  return CLAUDE_PERMISSION_OPTIONS.some((option) => option.id === value)
+}
+
+export function isCodexPermissionMode(value: unknown): value is CodexPermissionMode {
+  return CODEX_PERMISSION_OPTIONS.some((option) => option.id === value)
+}
+
+export function normalizeClaudePermissionMode(value: unknown): ClaudePermissionMode {
+  return isClaudePermissionMode(value) ? value : DEFAULT_CLAUDE_PERMISSION_MODE
+}
+
+export function normalizeCodexPermissionMode(value: unknown): CodexPermissionMode {
+  return isCodexPermissionMode(value) ? value : DEFAULT_CODEX_PERMISSION_MODE
 }
 
 export const CLAUDE_CONTEXT_WINDOW_OPTIONS = [

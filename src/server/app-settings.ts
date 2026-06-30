@@ -6,9 +6,13 @@ import path from "node:path"
 import { getSettingsFilePath, LOG_PREFIX } from "../shared/branding"
 import {
   DEFAULT_CLAUDE_MODEL_OPTIONS,
+  DEFAULT_CLAUDE_PERMISSION_MODE,
   DEFAULT_CODEX_MODEL_OPTIONS,
+  DEFAULT_CODEX_PERMISSION_MODE,
   isClaudeReasoningEffort,
   isCodexReasoningEffort,
+  normalizeClaudePermissionMode,
+  normalizeCodexPermissionMode,
   normalizeClaudeContextWindow,
   normalizeClaudeModelId,
   normalizeCodexModelId,
@@ -20,7 +24,9 @@ import {
   type ChatSoundId,
   type ChatSoundPreference,
   type ClaudeModelOptions,
+  type ClaudePermissionMode,
   type CodexModelOptions,
+  type CodexPermissionMode,
   type DefaultProviderPreference,
   type EditorPreset,
   type ProviderPreference,
@@ -102,11 +108,13 @@ function createDefaultProviderDefaults(): ChatProviderPreferences {
       model: "claude-opus-4-8",
       modelOptions: { ...DEFAULT_CLAUDE_MODEL_OPTIONS },
       planMode: false,
+      permissionMode: DEFAULT_CLAUDE_PERMISSION_MODE,
     },
     codex: {
       model: "gpt-5.5",
       modelOptions: { ...DEFAULT_CODEX_MODEL_OPTIONS },
       planMode: false,
+      permissionMode: DEFAULT_CODEX_PERMISSION_MODE,
     },
   }
 }
@@ -162,7 +170,8 @@ function normalizeClaudePreference(value?: {
   effort?: unknown
   modelOptions?: Partial<Record<keyof ClaudeModelOptions, unknown>>
   planMode?: unknown
-}): ProviderPreference<ClaudeModelOptions> {
+  permissionMode?: unknown
+}): ProviderPreference<ClaudeModelOptions, ClaudePermissionMode> {
   const model = normalizeClaudeModelId(typeof value?.model === "string" ? value.model : undefined)
   const reasoningEffort = value?.modelOptions?.reasoningEffort
   const normalizedEffort = isClaudeReasoningEffort(reasoningEffort)
@@ -178,6 +187,7 @@ function normalizeClaudePreference(value?: {
       contextWindow: normalizeClaudeContextWindow(model, value?.modelOptions?.contextWindow),
     },
     planMode: value?.planMode === true,
+    permissionMode: normalizeClaudePermissionMode(value?.permissionMode),
   }
 }
 
@@ -186,7 +196,8 @@ function normalizeCodexPreference(value?: {
   effort?: unknown
   modelOptions?: Partial<Record<keyof CodexModelOptions, unknown>>
   planMode?: unknown
-}): ProviderPreference<CodexModelOptions> {
+  permissionMode?: unknown
+}): ProviderPreference<CodexModelOptions, CodexPermissionMode> {
   const reasoningEffort = value?.modelOptions?.reasoningEffort
   return {
     model: normalizeCodexModelId(typeof value?.model === "string" ? value.model : undefined),
@@ -201,6 +212,7 @@ function normalizeCodexPreference(value?: {
         : DEFAULT_CODEX_MODEL_OPTIONS.fastMode,
     },
     planMode: value?.planMode === true,
+    permissionMode: normalizeCodexPermissionMode(value?.permissionMode),
   }
 }
 

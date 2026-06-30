@@ -88,8 +88,12 @@ describe("CodexExecManager", () => {
         "gpt-5.5",
         "-c",
         "model_reasoning_effort=\"xhigh\"",
-        "--sandbox",
-        "danger-full-access",
+        "-c",
+        "sandbox_mode=\"danger-full-access\"",
+        "-c",
+        "approval_policy=\"never\"",
+        "-c",
+        "approvals_reviewer=\"user\"",
         "--skip-git-repo-check",
         "-",
       ],
@@ -189,6 +193,12 @@ describe("CodexExecManager", () => {
       "gpt-5.5",
       "-c",
       "model_reasoning_effort=\"high\"",
+      "-c",
+      "sandbox_mode=\"danger-full-access\"",
+      "-c",
+      "approval_policy=\"never\"",
+      "-c",
+      "approvals_reviewer=\"user\"",
       "--skip-git-repo-check",
       "thread-existing",
       "-",
@@ -205,6 +215,60 @@ describe("CodexExecManager", () => {
       "thread-existing",
       "thread-existing",
     ])
+  })
+
+  test("maps Codex permission presets into exec config overrides", async () => {
+    const spawned: Array<{ args: string[]; cwd: string }> = []
+    const processes: FakeCodexExecProcess[] = []
+    const manager = new CodexExecManager({
+      spawnProcess: (args, cwd) => {
+        spawned.push({ args, cwd })
+        const process = new FakeCodexExecProcess()
+        processes.push(process)
+        return process as never
+      },
+    })
+
+    await manager.startSession({
+      chatId: "chat-request",
+      cwd: "/tmp/project",
+      model: "gpt-5.5",
+      sessionToken: null,
+      permissionMode: "request",
+    })
+    const requestTurn = await manager.startTurn({
+      chatId: "chat-request",
+      model: "gpt-5.5",
+      content: "Request mode",
+      planMode: false,
+      onToolRequest: async () => ({}),
+    })
+    expect(spawned[0]?.args).toContain("sandbox_mode=\"workspace-write\"")
+    expect(spawned[0]?.args).toContain("approval_policy=\"on-request\"")
+    expect(spawned[0]?.args).toContain("approvals_reviewer=\"user\"")
+    requestTurn.close()
+
+    await manager.startSession({
+      chatId: "chat-auto",
+      cwd: "/tmp/project",
+      model: "gpt-5.5",
+      sessionToken: null,
+      permissionMode: "request",
+    })
+    const autoTurn = await manager.startTurn({
+      chatId: "chat-auto",
+      model: "gpt-5.5",
+      content: "Auto mode",
+      planMode: false,
+      permissionMode: "auto",
+      onToolRequest: async () => ({}),
+    })
+    expect(spawned[1]?.args).toContain("sandbox_mode=\"workspace-write\"")
+    expect(spawned[1]?.args).toContain("approval_policy=\"on-request\"")
+    expect(spawned[1]?.args).toContain("approvals_reviewer=\"auto_review\"")
+    autoTurn.close()
+
+    expect(processes.every((process) => process.killed)).toBe(true)
   })
 
   test("emits an error result when the exec process fails", async () => {

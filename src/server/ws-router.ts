@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import type { ServerWebSocket } from "bun"
-import { PROTOCOL_VERSION } from "../shared/types"
+import { PROTOCOL_VERSION, normalizeClaudePermissionMode, normalizeCodexPermissionMode } from "../shared/types"
 import type { ClientEnvelope, ServerEnvelope, SubscriptionTopic } from "../shared/protocol"
 import { isClientEnvelope } from "../shared/protocol"
 import type { AgentCoordinator } from "./agent"
@@ -18,6 +18,7 @@ import { killLocalHttpServer, listLocalHttpServers } from "./local-http-servers"
 import { ensureProjectDirectory, resolveLocalPath } from "./paths"
 import { readProjectQuickActions, writeProjectQuickActions } from "./project-quick-actions"
 import { writeStandaloneTranscriptExport } from "./standalone-export"
+import { readSubscriptionUsageSnapshot } from "./subscription-usage"
 import { TerminalManager } from "./terminal-manager"
 import type { UpdateManager } from "./update-manager"
 import { deriveChatSnapshot, deriveLocalProjectsSnapshot, deriveSidebarData } from "./read-models"
@@ -30,6 +31,7 @@ import type {
   SkillInstallResult,
   SkillSearchSnapshot,
   SkillUninstallResult,
+  SubscriptionUsageSnapshot,
 } from "../shared/types"
 
 const DEFAULT_CHAT_RECENT_LIMIT = 200
@@ -127,6 +129,9 @@ interface CreateWsRouterArgs {
     read: () => Promise<LlmProviderSnapshot>
     write: (value: Pick<LlmProviderSnapshot, "provider" | "apiKey" | "model" | "baseUrl">) => Promise<LlmProviderSnapshot>
     validate: (value: Pick<LlmProviderSnapshot, "provider" | "apiKey" | "model" | "baseUrl">) => Promise<LlmProviderValidationResult>
+  }
+  subscriptionUsage?: {
+    read: () => Promise<SubscriptionUsageSnapshot>
   }
   refreshDiscovery: () => Promise<DiscoveredProject[]>
   getDiscoveredProjects: () => DiscoveredProject[]
@@ -382,6 +387,7 @@ export function createWsRouter({
   appSettings,
   analytics,
   llmProvider,
+  subscriptionUsage,
   refreshDiscovery,
   getDiscoveredProjects,
   machineDisplayName,
@@ -448,6 +454,9 @@ export function createWsRouter({
       },
     }),
   }
+  const resolvedSubscriptionUsage = subscriptionUsage ?? {
+    read: readSubscriptionUsageSnapshot,
+  }
   let fallbackAppSettingsSnapshot: AppSettingsSnapshot = {
     analyticsEnabled: true,
     browserSettingsMigrated: false,
@@ -471,14 +480,16 @@ export function createWsRouter({
           contextWindow: "200k",
         },
         planMode: false,
+        permissionMode: "acceptEdits",
       },
       codex: {
         model: "gpt-5.5",
         modelOptions: {
-          reasoningEffort: "high",
-          fastMode: false,
+          reasoningEffort: "xhigh",
+          fastMode: true,
         },
         planMode: false,
+        permissionMode: "full",
       },
     },
     warning: null,
@@ -499,6 +510,9 @@ export function createWsRouter({
       claude: {
         ...snapshot.providerDefaults.claude,
         ...patch.providerDefaults?.claude,
+        permissionMode: normalizeClaudePermissionMode(
+          patch.providerDefaults?.claude?.permissionMode ?? snapshot.providerDefaults.claude.permissionMode
+        ),
         modelOptions: {
           ...snapshot.providerDefaults.claude.modelOptions,
           ...patch.providerDefaults?.claude?.modelOptions,
@@ -507,6 +521,9 @@ export function createWsRouter({
       codex: {
         ...snapshot.providerDefaults.codex,
         ...patch.providerDefaults?.codex,
+        permissionMode: normalizeCodexPermissionMode(
+          patch.providerDefaults?.codex?.permissionMode ?? snapshot.providerDefaults.codex.permissionMode
+        ),
         modelOptions: {
           ...snapshot.providerDefaults.codex.modelOptions,
           ...patch.providerDefaults?.codex?.modelOptions,
@@ -1139,6 +1156,10 @@ export function createWsRouter({
         }
         case "settings.readLlmProvider": {
           send(ws, { v: PROTOCOL_VERSION, type: "ack", id, result: await resolvedLlmProvider.read() })
+          return
+        }
+        case "settings.readSubscriptionUsage": {
+          send(ws, { v: PROTOCOL_VERSION, type: "ack", id, result: await resolvedSubscriptionUsage.read() })
           return
         }
         case "settings.writeLlmProvider": {

@@ -4,18 +4,8 @@ import { fallbackTitleFromMessage, generateTitleForChat, generateTitleForChatDet
 import { createDefaultQuickResponseCodexManager, getQuickResponseWorkspace, QuickResponseAdapter } from "./quick-response"
 
 describe("QuickResponseAdapter", () => {
-  test("uses the exec Codex manager for fallback when the backend switch is enabled", () => {
-    const previousBackend = process.env.KANNA_CODEX_BACKEND
-    process.env.KANNA_CODEX_BACKEND = "exec"
-    try {
-      expect(createDefaultQuickResponseCodexManager()).toBeInstanceOf(CodexExecManager)
-    } finally {
-      if (previousBackend === undefined) {
-        delete process.env.KANNA_CODEX_BACKEND
-      } else {
-        process.env.KANNA_CODEX_BACKEND = previousBackend
-      }
-    }
+  test("uses the exec Codex manager for fallback by default", () => {
+    expect(createDefaultQuickResponseCodexManager()).toBeInstanceOf(CodexExecManager)
   })
 
   test("returns the SDK structured result when configured and it validates", async () => {

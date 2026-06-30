@@ -4,12 +4,15 @@ import {
   Command,
   Code,
   ExternalLink,
+  Gauge,
   Info,
+  Clock3,
   Loader2,
   Menu,
   Monitor,
   Moon,
   MessageSquareQuote,
+  RefreshCw,
   Search,
   Settings2,
   Sun,
@@ -37,10 +40,13 @@ import {
   type SkillSearchResult,
   type SkillSearchSnapshot,
   type SkillUninstallResult,
+  type SubscriptionUsageProviderSnapshot,
+  type SubscriptionUsageSnapshot,
+  type SubscriptionUsageWindow,
   type UpdateSnapshot,
 } from "../../shared/types"
 import { markdownComponents } from "../components/messages/shared"
-import { ChatPreferenceControls } from "../components/chat-ui/ChatPreferenceControls"
+import { ChatPreferenceControls, type PermissionModeChange } from "../components/chat-ui/ChatPreferenceControls"
 import { EDITOR_OPTIONS, EditorIcon } from "../components/editor-icons"
 import { Button, buttonVariants } from "../components/ui/button"
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogTitle } from "../components/ui/dialog"
@@ -92,6 +98,12 @@ const sidebarItems = [
     label: "Providers",
     icon: MessageSquareQuote,
     subtitle: "Manage the default chat provider and saved model defaults for Claude Code and Codex.",
+  },
+  {
+    id: "usage",
+    label: "Usage",
+    icon: Gauge,
+    subtitle: "View local Codex and Claude Code subscription windows and reset times.",
   },
   {
     id: "keybindings",
@@ -153,6 +165,7 @@ type GithubRelease = {
 }
 
 type ChangelogStatus = "idle" | "loading" | "success" | "error"
+type SubscriptionUsageLoadStatus = "idle" | "loading" | "success" | "error"
 
 type ChangelogCache = {
   expiresAt: number
@@ -771,6 +784,201 @@ export function SkillsSection({
   )
 }
 
+function SubscriptionUsageSection({
+  snapshot,
+  status,
+  error,
+  onRetry,
+}: {
+  snapshot: SubscriptionUsageSnapshot | null
+  status: SubscriptionUsageLoadStatus
+  error: string | null
+  onRetry: () => void
+}) {
+  if (status === "loading" && !snapshot) {
+    return (
+      <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-border bg-card/40 px-6 py-8 text-sm text-muted-foreground">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading usage…</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!snapshot && status === "error") {
+    return (
+      <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-6 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-sm font-medium text-foreground">Could not load usage</div>
+            <div className="mt-1 text-sm text-muted-foreground">{error ?? "Unable to read local subscription usage."}</div>
+          </div>
+          <Button type="button" size="sm" variant="secondary" onClick={onRetry}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {status === "loading" && snapshot ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>Refreshing usage…</span>
+        </div>
+      ) : null}
+      {error ? (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+      {snapshot ? (
+        <div className="border-b border-border">
+          {snapshot.providers.map((provider, index) => (
+            <SubscriptionUsageProviderBlock
+              key={provider.provider}
+              provider={provider}
+              bordered={index !== 0}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-card/30 px-4 py-3 text-sm text-muted-foreground">
+          No usage snapshot loaded.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SubscriptionUsageProviderBlock({
+  provider,
+  bordered,
+}: {
+  provider: SubscriptionUsageProviderSnapshot
+  bordered: boolean
+}) {
+  return (
+    <section className={cn("py-5", bordered ? "border-t border-border" : undefined)}>
+      <div className="min-w-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="text-sm font-medium text-foreground">{provider.label}</div>
+          <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", getUsageStatusClassName(provider.status))}>
+            {formatUsageStatus(provider.status)}
+          </span>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>Account: {provider.accountEmail ?? "Unavailable"}</span>
+          {provider.planType ? <span>Plan: {formatPlanType(provider.planType)}</span> : null}
+        </div>
+        {provider.status === "stale" ? (
+          <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            The latest quota reset times have passed. Refresh usage to request a new snapshot.
+          </div>
+        ) : null}
+        {provider.error ? (
+          <div className="mt-2 text-xs text-destructive">{provider.error}</div>
+        ) : null}
+        <div className="mt-3 grid w-full min-w-0 gap-3 sm:grid-cols-2">
+          {provider.windows.map((window) => (
+            <SubscriptionUsageWindowBlock key={window.id} window={window} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function SubscriptionUsageWindowBlock({ window }: { window: SubscriptionUsageWindow }) {
+  const label = window.id === "five_hour" ? "5-hour limit" : window.id === "weekly" ? "Weekly limit" : window.label
+  const percentLabel = formatUsagePercent(window.usedPercent)
+  const progress = getUsageProgress(window.usedPercent)
+
+  return (
+    <div className="rounded-lg border border-border bg-card/30 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 text-xs font-medium text-muted-foreground">{label}</div>
+        <div className="shrink-0 font-mono text-lg font-semibold leading-none text-foreground">{percentLabel}</div>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn("h-full rounded-full", getUsageProgressClassName(window.usedPercent))}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Clock3 className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0 truncate">Resets {formatUsageDate(window.resetsAt, window.resetsAtText)}</span>
+      </div>
+    </div>
+  )
+}
+
+function formatUsageStatus(status: SubscriptionUsageProviderSnapshot["status"]) {
+  switch (status) {
+    case "available":
+      return "Available"
+    case "stale":
+      return "Stale"
+    case "unavailable":
+      return "Unavailable"
+    case "error":
+      return "Error"
+  }
+}
+
+function getUsageStatusClassName(status: SubscriptionUsageProviderSnapshot["status"]) {
+  switch (status) {
+    case "available":
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+    case "stale":
+      return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+    case "unavailable":
+      return "border-border bg-muted text-muted-foreground"
+    case "error":
+      return "border-destructive/30 bg-destructive/10 text-destructive"
+  }
+}
+
+function formatPlanType(planType: string) {
+  const normalized = planType.trim()
+  if (!normalized) return "Unknown"
+  return `${normalized[0]?.toUpperCase() ?? ""}${normalized.slice(1)}`
+}
+
+function formatUsagePercent(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return "N/A"
+  const rounded = Math.abs(value - Math.round(value)) < 0.05 ? String(Math.round(value)) : value.toFixed(1)
+  return `${rounded}%`
+}
+
+function getUsageProgress(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(100, value))
+}
+
+function getUsageProgressClassName(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return "bg-muted-foreground/30"
+  if (value >= 95) return "bg-destructive"
+  if (value >= 75) return "bg-amber-500"
+  return "bg-emerald-500"
+}
+
+function formatUsageDate(value: number | null | undefined, fallbackText?: string | null) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(value)
+  }
+  return fallbackText ?? "Unknown"
+}
+
 function SettingsRow({
   title,
   description,
@@ -838,6 +1046,7 @@ export function SettingsPage() {
   const setProviderDefaultModel = useChatPreferencesStore((store) => store.setProviderDefaultModel)
   const setProviderDefaultModelOptions = useChatPreferencesStore((store) => store.setProviderDefaultModelOptions)
   const setProviderDefaultPlanMode = useChatPreferencesStore((store) => store.setProviderDefaultPlanMode)
+  const setProviderDefaultPermissionMode = useChatPreferencesStore((store) => store.setProviderDefaultPermissionMode)
   const resolvedKeybindings = useMemo(() => getResolvedKeybindings(keybindings), [keybindings])
   const keybindingsFilePathDisplay = resolvedKeybindings.filePathDisplay || getKeybindingsFilePathDisplay()
   const [scrollbackDraft, setScrollbackDraft] = useState(String(scrollbackLines))
@@ -846,6 +1055,9 @@ export function SettingsPage() {
   const [keybindingDrafts, setKeybindingDrafts] = useState<Record<string, string>>({})
   const [keybindingsError, setKeybindingsError] = useState<string | null>(null)
   const [appSettingsError, setAppSettingsError] = useState<string | null>(null)
+  const [subscriptionUsage, setSubscriptionUsage] = useState<SubscriptionUsageSnapshot | null>(null)
+  const [subscriptionUsageStatus, setSubscriptionUsageStatus] = useState<SubscriptionUsageLoadStatus>("idle")
+  const [subscriptionUsageError, setSubscriptionUsageError] = useState<string | null>(null)
   const [analyticsDialogOpen, setAnalyticsDialogOpen] = useState(false)
   const [llmProviderDraft, setLlmProviderDraft] = useState({
     provider: "openai" as LlmProviderKind,
@@ -875,6 +1087,26 @@ export function SettingsPage() {
             : updateSnapshot?.status === "error"
               ? "Update check failed"
               : "Not checked yet"
+
+  async function readSubscriptionUsage() {
+    if (state.connectionStatus !== "connected") {
+      setSubscriptionUsage(null)
+      setSubscriptionUsageStatus("idle")
+      setSubscriptionUsageError(null)
+      return
+    }
+
+    try {
+      setSubscriptionUsageStatus("loading")
+      setSubscriptionUsageError(null)
+      const snapshot = await state.socket.command<SubscriptionUsageSnapshot>({ type: "settings.readSubscriptionUsage" })
+      setSubscriptionUsage(snapshot)
+      setSubscriptionUsageStatus("success")
+    } catch (error) {
+      setSubscriptionUsageStatus("error")
+      setSubscriptionUsageError(error instanceof Error ? error.message : "Unable to read subscription usage.")
+    }
+  }
 
   useEffect(() => {
     setScrollbackDraft(String(scrollbackLines))
@@ -950,6 +1182,11 @@ export function SettingsPage() {
     if (selectedPage !== "providers" || isConnecting) return
     void handleReadLlmProvider()
   }, [handleReadLlmProvider, isConnecting, selectedPage])
+
+  useEffect(() => {
+    if (selectedPage !== "usage" || isConnecting) return
+    void readSubscriptionUsage()
+  }, [isConnecting, selectedPage, state.connectionStatus, state.socket])
 
   useEffect(() => {
     if (selectedPage !== "changelog" || isConnecting) return
@@ -1098,6 +1335,21 @@ export function SettingsPage() {
   function handleProviderDefaultPlanModeChange(provider: AgentProvider, planMode: boolean) {
     setProviderDefaultPlanMode(provider, planMode)
     void handleWriteAppSettings({ providerDefaults: { [provider]: { planMode } } }).catch((error) => {
+      setAppSettingsError(error instanceof Error ? error.message : "Unable to save provider settings.")
+    })
+  }
+
+  function handleProviderDefaultPermissionModeChange(change: PermissionModeChange) {
+    if (change.provider === "claude") {
+      setProviderDefaultPermissionMode("claude", change.permissionMode)
+      void handleWriteAppSettings({ providerDefaults: { claude: { permissionMode: change.permissionMode } } }).catch((error) => {
+        setAppSettingsError(error instanceof Error ? error.message : "Unable to save provider settings.")
+      })
+      return
+    }
+
+    setProviderDefaultPermissionMode("codex", change.permissionMode)
+    void handleWriteAppSettings({ providerDefaults: { codex: { permissionMode: change.permissionMode } } }).catch((error) => {
       setAppSettingsError(error instanceof Error ? error.message : "Unable to save provider settings.")
     })
   }
@@ -1367,6 +1619,19 @@ export function SettingsPage() {
                         icon={<Code className="h-4 w-4" />}
                       >
                         Open in {state.editorLabel}
+                      </SettingsHeaderButton>
+                    ) : null}
+                    {selectedPage === "usage" ? (
+                      <SettingsHeaderButton
+                        onClick={() => {
+                          void readSubscriptionUsage()
+                        }}
+                        disabled={subscriptionUsageStatus === "loading"}
+                        icon={subscriptionUsageStatus === "loading"
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <RefreshCw className="h-4 w-4" />}
+                      >
+                        Refresh
                       </SettingsHeaderButton>
                     ) : null}
                   </div>
@@ -1657,6 +1922,8 @@ export function SettingsPage() {
                           }}
                           planMode={providerDefaults.claude.planMode}
                           onPlanModeChange={(planMode) => handleProviderDefaultPlanModeChange("claude", planMode)}
+                          permissionMode={providerDefaults.claude.permissionMode}
+                          onPermissionModeChange={handleProviderDefaultPermissionModeChange}
                           includePlanMode
                           className="justify-start flex-wrap"
                         />
@@ -1688,6 +1955,8 @@ export function SettingsPage() {
                           }}
                           planMode={providerDefaults.codex.planMode}
                           onPlanModeChange={(planMode) => handleProviderDefaultPlanModeChange("codex", planMode)}
+                          permissionMode={providerDefaults.codex.permissionMode}
+                          onPermissionModeChange={handleProviderDefaultPermissionModeChange}
                           includePlanMode
                           className="justify-start flex-wrap"
                         />
@@ -1751,6 +2020,15 @@ export function SettingsPage() {
                       </div>
                     </SettingsRow>
                   </div>
+                ) : selectedPage === "usage" ? (
+                  <SubscriptionUsageSection
+                    snapshot={subscriptionUsage}
+                    status={subscriptionUsageStatus}
+                    error={subscriptionUsageError}
+                    onRetry={() => {
+                      void readSubscriptionUsage()
+                    }}
+                  />
                 ) : selectedPage === "keybindings" ? (
                   <div className="border-b border-border">
                     {keybindingsError ? (

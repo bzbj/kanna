@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useShallow } from "zustand/react/shallow"
-import { PROVIDERS, type AgentProvider, type AppSettingsPatch, type AppSettingsSnapshot, type AskUserQuestionAnswerMap, type ChatAttachment, type ChatDiffSnapshot, type ChatHistoryPage, type KeybindingsSnapshot, type LlmProviderSnapshot, type LlmProviderValidationResult, type ModelOptions, type ProviderCatalogEntry, type QueuedChatMessage, type StandaloneTranscriptExportCommandResult, type TranscriptEntry, type UpdateInstallResult, type UpdateSnapshot, type UserPromptEntry } from "../../shared/types"
+import { PROVIDERS, type AgentPermissionMode, type AgentProvider, type AppSettingsPatch, type AppSettingsSnapshot, type AskUserQuestionAnswerMap, type ChatAttachment, type ChatDiffSnapshot, type ChatHistoryPage, type KeybindingsSnapshot, type LlmProviderSnapshot, type LlmProviderValidationResult, type ModelOptions, type ProviderCatalogEntry, type QueuedChatMessage, type StandaloneTranscriptExportCommandResult, type TranscriptEntry, type UpdateInstallResult, type UpdateSnapshot, type UserPromptEntry } from "../../shared/types"
 import { NEW_CHAT_COMPOSER_ID, type ComposerState, useChatPreferencesStore } from "../stores/chatPreferencesStore"
 import { useRightSidebarStore } from "../stores/rightSidebarStore"
 import { useTerminalLayoutStore } from "../stores/terminalLayoutStore"
@@ -487,6 +487,7 @@ function composerStateFromSendOptions(options?: {
   model?: string
   modelOptions?: ModelOptions
   planMode?: boolean
+  permissionMode?: AgentPermissionMode
 }): ComposerState | null {
   if (options?.provider === "claude" && options.model && options.modelOptions?.claude) {
     return {
@@ -497,6 +498,13 @@ function composerStateFromSendOptions(options?: {
         contextWindow: options.modelOptions.claude.contextWindow ?? "200k",
       },
       planMode: Boolean(options.planMode),
+      permissionMode: options.permissionMode === "default"
+        || options.permissionMode === "acceptEdits"
+        || options.permissionMode === "auto"
+        || options.permissionMode === "dontAsk"
+        || options.permissionMode === "bypassPermissions"
+        ? options.permissionMode
+        : "acceptEdits",
     }
   }
 
@@ -509,6 +517,11 @@ function composerStateFromSendOptions(options?: {
         fastMode: options.modelOptions.codex.fastMode ?? false,
       },
       planMode: Boolean(options.planMode),
+      permissionMode: options.permissionMode === "request"
+        || options.permissionMode === "auto"
+        || options.permissionMode === "full"
+        ? options.permissionMode
+        : "full",
     }
   }
 
@@ -703,7 +716,7 @@ export interface KannaState {
   handleWriteLlmProvider: (value: Pick<LlmProviderSnapshot, "provider" | "apiKey" | "model" | "baseUrl">) => Promise<void>
   handleValidateLlmProvider: (value: Pick<LlmProviderSnapshot, "provider" | "apiKey" | "model" | "baseUrl">) => Promise<LlmProviderValidationResult>
   handleSignOut: () => Promise<void>
-  handleSend: (content: string, options?: { provider?: AgentProvider; model?: string; modelOptions?: ModelOptions; planMode?: boolean }) => Promise<void>
+  handleSend: (content: string, options?: { provider?: AgentProvider; model?: string; modelOptions?: ModelOptions; planMode?: boolean; permissionMode?: AgentPermissionMode }) => Promise<void>
   handleSteerQueuedMessage: (queuedMessageId: string) => Promise<void>
   handleRemoveQueuedMessage: (queuedMessageId: string) => Promise<void>
   handleCancel: () => Promise<void>
@@ -1519,7 +1532,7 @@ export function useKannaState(activeChatId: string | null): KannaState {
 
   const handleSend = useCallback(async (
     content: string,
-    options?: { provider?: AgentProvider; model?: string; modelOptions?: ModelOptions; planMode?: boolean; attachments?: import("../../shared/types").ChatAttachment[] }
+    options?: { provider?: AgentProvider; model?: string; modelOptions?: ModelOptions; planMode?: boolean; permissionMode?: AgentPermissionMode; attachments?: ChatAttachment[] }
   ) => {
     const attachments = options?.attachments ?? []
     if (activeChatId && isProcessing) {
@@ -1533,6 +1546,7 @@ export function useKannaState(activeChatId: string | null): KannaState {
           model: options?.model,
           modelOptions: options?.modelOptions,
           planMode: options?.planMode,
+          permissionMode: options?.permissionMode,
         })
         setCommandError(null)
         return
@@ -1613,6 +1627,7 @@ export function useKannaState(activeChatId: string | null): KannaState {
         model: options?.model,
         modelOptions: options?.modelOptions,
         planMode: options?.planMode,
+        permissionMode: options?.permissionMode,
       })
       sendTrace.ackAt = performance.now()
       sendTrace.serverChatId = result.chatId ?? sendTrace.serverChatId

@@ -45,8 +45,8 @@ describe("provider catalog normalization", () => {
 
   test("normalizes Codex model options and fast mode defaults", () => {
     expect(normalizeCodexModelOptions(undefined)).toEqual({
-      reasoningEffort: "high",
-      fastMode: false,
+      reasoningEffort: "xhigh",
+      fastMode: true,
     })
 
     const normalized = normalizeCodexModelOptions({

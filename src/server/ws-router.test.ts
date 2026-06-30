@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import type { AppSettingsSnapshot, KeybindingsSnapshot, LlmProviderSnapshot, UpdateSnapshot } from "../shared/types"
+import type {
+  AppSettingsSnapshot,
+  KeybindingsSnapshot,
+  LlmProviderSnapshot,
+  SubscriptionUsageSnapshot,
+  UpdateSnapshot,
+} from "../shared/types"
 import { PROTOCOL_VERSION } from "../shared/types"
 import { createEmptyState } from "./events"
 import {
@@ -93,14 +99,16 @@ const DEFAULT_APP_SETTINGS_SNAPSHOT: AppSettingsSnapshot = {
         contextWindow: "200k",
       },
       planMode: false,
+      permissionMode: "acceptEdits",
     },
     codex: {
       model: "gpt-5.5",
       modelOptions: {
-        reasoningEffort: "high",
-        fastMode: false,
+        reasoningEffort: "xhigh",
+        fastMode: true,
       },
       planMode: false,
+      permissionMode: "full",
     },
   },
   warning: null,
@@ -220,6 +228,68 @@ const DEFAULT_LLM_PROVIDER_SNAPSHOT: LlmProviderSnapshot = {
   enabled: false,
   warning: null,
   filePathDisplay: "~/.kanna/llm-provider.json",
+}
+
+const DEFAULT_SUBSCRIPTION_USAGE_SNAPSHOT: SubscriptionUsageSnapshot = {
+  generatedAt: 1_782_799_000_000,
+  providers: [
+    {
+      provider: "codex",
+      label: "Codex",
+      status: "available",
+      planType: "pro",
+      accountEmail: "codex@example.com",
+      source: "Latest local Codex token_count event",
+      updatedAt: 1_782_798_900_000,
+      error: null,
+      windows: [
+        {
+          id: "five_hour",
+          label: "5-hour window",
+          usedPercent: 18,
+          windowMinutes: 300,
+          resetsAt: 1_782_808_000_000,
+          resetsAtText: null,
+        },
+        {
+          id: "weekly",
+          label: "Weekly window",
+          usedPercent: 4,
+          windowMinutes: 10_080,
+          resetsAt: 1_783_000_000_000,
+          resetsAtText: null,
+        },
+      ],
+    },
+    {
+      provider: "claude",
+      label: "Claude Code",
+      status: "available",
+      planType: "pro",
+      accountEmail: "claude@example.com",
+      source: "claude /usage",
+      updatedAt: 1_782_799_000_000,
+      error: null,
+      windows: [
+        {
+          id: "five_hour",
+          label: "5-hour window",
+          usedPercent: 0,
+          windowMinutes: 300,
+          resetsAt: 1_782_810_000_000,
+          resetsAtText: "Jun 30 at 9:29pm (Asia/Shanghai)",
+        },
+        {
+          id: "weekly",
+          label: "Weekly window",
+          usedPercent: 5,
+          windowMinutes: 10_080,
+          resetsAt: 1_782_840_000_000,
+          resetsAtText: "Jul 1 at 4:59am (Asia/Shanghai)",
+        },
+      ],
+    },
+  ],
 }
 
 describe("ws-router", () => {
@@ -354,6 +424,49 @@ describe("ws-router", () => {
       model: "gpt-test",
       baseUrl: "https://example.com/v1",
     }])
+  })
+
+  test("reads subscription usage via command", async () => {
+    const router = createWsRouter({
+      store: { state: createEmptyState() } as never,
+      agent: { getActiveStatuses: () => new Map(), getDrainingChatIds: () => new Set() } as never,
+      terminals: {
+        getSnapshot: () => null,
+        onEvent: () => () => {},
+      } as never,
+      keybindings: {
+        getSnapshot: () => DEFAULT_KEYBINDINGS_SNAPSHOT,
+        onChange: () => () => {},
+      } as never,
+      subscriptionUsage: {
+        read: async () => DEFAULT_SUBSCRIPTION_USAGE_SNAPSHOT,
+      },
+      refreshDiscovery: async () => [],
+      getDiscoveredProjects: () => [],
+      machineDisplayName: "Local Machine",
+      updateManager: null,
+    })
+    const ws = new FakeWebSocket()
+    router.handleOpen(ws as never)
+
+    await router.handleMessage(
+      ws as never,
+      JSON.stringify({
+        v: 1,
+        type: "command",
+        id: "usage-read-1",
+        command: { type: "settings.readSubscriptionUsage" },
+      })
+    )
+
+    expect(ws.sent).toEqual([
+      {
+        v: PROTOCOL_VERSION,
+        type: "ack",
+        id: "usage-read-1",
+        result: DEFAULT_SUBSCRIPTION_USAGE_SNAPSHOT,
+      },
+    ])
   })
 
   test("reads and writes app settings via commands", async () => {

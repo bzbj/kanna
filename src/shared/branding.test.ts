@@ -35,8 +35,8 @@ describe("runtime profile helpers", () => {
 })
 
 describe("linjunkAI edition helpers", () => {
-  test("starts the local edition sequence at Pup", () => {
-    expect(LINJUNKAI_EDITION).toBe("Pup")
+  test("keeps the local edition sequence and current edition", () => {
+    expect(LINJUNKAI_EDITION).toBe("Husky")
     expect(LINJUNKAI_EDITION_SEQUENCE).toEqual([
       "Pup",
       "Husky",
@@ -61,6 +61,12 @@ describe("linjunkAI edition helpers", () => {
   test("keeps the Pup tooltip anchored to the newborn puppy meaning", () => {
     expect(getLinjunkaiEditionTooltip("Pup")).toBe(
       "Software Edition: Pup.\nA newborn puppy: small, fresh, and just starting out."
+    )
+  })
+
+  test("keeps the Husky tooltip anchored to the young sled dog meaning", () => {
+    expect(getLinjunkaiEditionTooltip("Husky")).toBe(
+      "Software Edition: Husky.\nA loud young sled dog: energetic, curious, and not fully disciplined yet."
     )
   })
 })

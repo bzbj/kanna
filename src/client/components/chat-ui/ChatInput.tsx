@@ -4,8 +4,12 @@ import {
   type AgentProvider,
   type ChatAttachment,
   type ClaudeContextWindow,
+  type ClaudePermissionMode,
   type ClaudeReasoningEffort,
+  type CodexPermissionMode,
   type CodexReasoningEffort,
+  DEFAULT_CLAUDE_PERMISSION_MODE,
+  DEFAULT_CODEX_PERMISSION_MODE,
   type ModelOptions,
   type ProviderCatalogEntry,
   normalizeClaudeContextWindow,
@@ -129,7 +133,7 @@ interface ComposerAttachment extends ChatAttachment {
 interface Props {
   onSubmit: (
     value: string,
-    options?: { provider?: AgentProvider; model?: string; modelOptions?: ModelOptions; planMode?: boolean; attachments?: ChatAttachment[] }
+    options?: { provider?: AgentProvider; model?: string; modelOptions?: ModelOptions; planMode?: boolean; permissionMode?: ClaudePermissionMode | CodexPermissionMode; attachments?: ChatAttachment[] }
   ) => Promise<void>
   onLayoutChange?: () => void
   onCancel?: () => void
@@ -178,12 +182,14 @@ function getEffectiveComposerState(
       model: providerDefaults.claude.model,
       modelOptions: { ...providerDefaults.claude.modelOptions },
       planMode: composerState.planMode,
+      permissionMode: providerDefaults.claude.permissionMode ?? DEFAULT_CLAUDE_PERMISSION_MODE,
     }
     : {
       provider: "codex",
       model: providerDefaults.codex.model,
       modelOptions: { ...providerDefaults.codex.modelOptions },
       planMode: composerState.planMode,
+      permissionMode: providerDefaults.codex.permissionMode ?? DEFAULT_CODEX_PERMISSION_MODE,
     }
 }
 
@@ -215,6 +221,7 @@ const ChatInputInner = forwardRef<ChatInputHandle, Props>(function ChatInput({
     initializeComposerForChat,
     setChatComposerModel,
     setChatComposerPlanMode,
+    setChatComposerPermissionMode,
     resetChatComposerFromProvider,
   } = useChatPreferencesStore()
   const composerChatId = chatId ?? NEW_CHAT_COMPOSER_ID
@@ -412,6 +419,10 @@ const ChatInputInner = forwardRef<ChatInputHandle, Props>(function ChatInput({
     setChatComposerPlanMode(composerChatId, planMode)
   }
 
+  function setEffectivePermissionMode(permissionMode: ClaudePermissionMode | CodexPermissionMode) {
+    setChatComposerPermissionMode(composerChatId, permissionMode)
+  }
+
   function toggleEffectivePlanMode() {
     setEffectivePlanMode(!providerPrefs.planMode)
   }
@@ -546,6 +557,7 @@ const ChatInputInner = forwardRef<ChatInputHandle, Props>(function ChatInput({
       model: providerPrefs.model,
       modelOptions,
       planMode: showPlanMode ? providerPrefs.planMode : false,
+      permissionMode: providerPrefs.permissionMode,
       attachments: attachmentsForSubmit,
     }
     setValue("")
@@ -827,6 +839,11 @@ const ChatInputInner = forwardRef<ChatInputHandle, Props>(function ChatInput({
             }}
             planMode={providerPrefs.planMode}
             onPlanModeChange={setEffectivePlanMode}
+            permissionMode={providerPrefs.permissionMode}
+            onPermissionModeChange={(change) => {
+              if (change.provider !== providerPrefs.provider) return
+              setEffectivePermissionMode(change.permissionMode)
+            }}
             includePlanMode={showPlanMode}
             className="max-w-[840px] mx-auto"
           />

@@ -16,7 +16,7 @@ export const LINJUNKAI_EDITION_SEQUENCE = [
   "Border",
 ] as const
 export type LinjunkaiEdition = typeof LINJUNKAI_EDITION_SEQUENCE[number]
-export const LINJUNKAI_EDITION: LinjunkaiEdition = "Pup"
+export const LINJUNKAI_EDITION: LinjunkaiEdition = "Husky"
 export const LINJUNKAI_EDITION_DESCRIPTIONS: Record<LinjunkaiEdition, string> = {
   Pup: "A newborn puppy: small, fresh, and just starting out.",
   Husky: "A loud young sled dog: energetic, curious, and not fully disciplined yet.",
