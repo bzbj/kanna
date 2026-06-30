@@ -74,6 +74,7 @@ function createDefaultProjectBrowserState(): ProjectBrowserPanelState {
 function normalizeBrowserAddress(address: string) {
   const trimmed = address.trim()
   if (!trimmed) return ""
+  if (trimmed.startsWith("/")) return trimmed
   if (/^[a-z][a-z\d+.-]*:\/\//i.test(trimmed)) return trimmed
   return `http://${trimmed}`
 }

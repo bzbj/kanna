@@ -22,4 +22,11 @@ describe("buildBrowserPreviewProxyUrl", () => {
       new URL("https://macbook.linjunkai.com/chat/demo")
     )).toBe("https://example.com/demo")
   })
+
+  test("leaves same-origin relative preview addresses unchanged", () => {
+    expect(buildBrowserPreviewProxyUrl(
+      "/api/projects/project-1/preview/output/index.html",
+      new URL("https://macbook.linjunkai.com/chat/demo")
+    )).toBe("/api/projects/project-1/preview/output/index.html")
+  })
 })

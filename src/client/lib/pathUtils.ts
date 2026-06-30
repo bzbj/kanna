@@ -9,6 +9,8 @@ export interface ParsedLocalFileLink {
   column?: number
 }
 
+const HTML_PREVIEW_EXTENSIONS = new Set([".html", ".htm"])
+
 const EDITOR_OPEN_EXTENSIONS = new Set([
   ".c", ".cc", ".cfg", ".conf", ".cpp", ".cs", ".css", ".diff", ".env", ".go", ".graphql", ".h",
   ".hpp", ".html", ".ini", ".java", ".js", ".json", ".jsonc", ".jsx", ".kt", ".log", ".lua",
@@ -41,6 +43,42 @@ function toPositiveInteger(value: string | undefined) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
 }
 
+function safeDecodePath(path: string) {
+  try {
+    return decodeURIComponent(path)
+  } catch {
+    return path
+  }
+}
+
+function stripTrailingSlashes(path: string) {
+  return path.length > 1 ? path.replace(/\/+$/, "") : path
+}
+
+function getFileExtension(path: string) {
+  const fileName = path.split(/[\\/]/).pop() ?? path
+  const extensionIndex = fileName.lastIndexOf(".")
+  return extensionIndex >= 0 ? fileName.slice(extensionIndex).toLowerCase() : ""
+}
+
+function isHtmlFilePath(path: string) {
+  return HTML_PREVIEW_EXTENSIONS.has(getFileExtension(path))
+}
+
+function normalizeProjectRelativePath(path: string) {
+  const normalizedParts: string[] = []
+  for (const part of path.replace(/\\/g, "/").split("/")) {
+    if (!part || part === ".") continue
+    if (part === "..") {
+      if (normalizedParts.length === 0) return null
+      normalizedParts.pop()
+      continue
+    }
+    normalizedParts.push(part)
+  }
+  return normalizedParts.join("/")
+}
+
 function parseAbsoluteFileTarget(target: string): ParsedFileTarget | null {
   const hashMatch = /^(?<path>\/.+?)#L(?<line>\d+)(?:C(?<column>\d+))?$/.exec(target)
   if (hashMatch?.groups?.path) {
@@ -67,6 +105,42 @@ function parseAbsoluteFileTarget(target: string): ParsedFileTarget | null {
   return null
 }
 
+function parseRelativeFileTarget(target: string): ParsedFileTarget | null {
+  if (
+    target.startsWith("/")
+    || target.startsWith("#")
+    || target.startsWith("?")
+    || target.startsWith("//")
+    || /^[a-z][a-z\d+.-]*:/i.test(target)
+  ) {
+    return null
+  }
+
+  const hashMatch = /^(?<path>[^?#]+?)#L(?<line>\d+)(?:C(?<column>\d+))?$/.exec(target)
+  if (hashMatch?.groups?.path) {
+    return {
+      path: hashMatch.groups.path,
+      line: toPositiveInteger(hashMatch.groups.line),
+      column: toPositiveInteger(hashMatch.groups.column),
+    }
+  }
+
+  const suffixMatch = /^(?<path>[^?#]+?):(?<line>\d+)(?::(?<column>\d+))?$/.exec(target)
+  if (suffixMatch?.groups?.path) {
+    return {
+      path: suffixMatch.groups.path,
+      line: toPositiveInteger(suffixMatch.groups.line),
+      column: toPositiveInteger(suffixMatch.groups.column),
+    }
+  }
+
+  if (target.includes("?") || !target.includes(".")) {
+    return null
+  }
+
+  return { path: target }
+}
+
 export function parseLocalFileLink(target: string | undefined | null): ParsedLocalFileLink | null {
   if (!target) return null
   const trimmed = target.trim()
@@ -88,6 +162,33 @@ export function parseLocalFileLink(target: string | undefined | null): ParsedLoc
   }
 
   return parseAbsoluteFileTarget(trimmed)
+}
+
+export function getProjectHtmlPreviewPath(filePath: string | undefined | null, localPath: string | undefined | null) {
+  if (!filePath || !localPath) return null
+  const decodedFilePath = safeDecodePath(filePath).replace(/\\/g, "/")
+  const projectPath = stripTrailingSlashes(safeDecodePath(localPath).replace(/\\/g, "/"))
+  const projectPrefix = `${projectPath}/`
+  if (!decodedFilePath.startsWith(projectPrefix)) return null
+
+  const relativePath = normalizeProjectRelativePath(decodedFilePath.slice(projectPrefix.length))
+  if (!relativePath || !isHtmlFilePath(relativePath)) return null
+  return relativePath
+}
+
+export function parseProjectRelativeHtmlFileLink(target: string | undefined | null, localPath: string | undefined | null): ParsedLocalFileLink | null {
+  if (!target || !localPath) return null
+  const parsedTarget = parseRelativeFileTarget(target.trim())
+  if (!parsedTarget) return null
+
+  const relativePath = normalizeProjectRelativePath(safeDecodePath(parsedTarget.path))
+  if (!relativePath || !isHtmlFilePath(relativePath)) return null
+
+  const projectPath = stripTrailingSlashes(safeDecodePath(localPath).replace(/\\/g, "/"))
+  return {
+    ...parsedTarget,
+    path: `${projectPath}/${relativePath}`,
+  }
 }
 
 export function shouldOpenLocalFileLinkInEditor(filePath: string) {

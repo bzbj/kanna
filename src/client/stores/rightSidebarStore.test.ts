@@ -143,6 +143,17 @@ describe("rightSidebarStore", () => {
     })
   })
 
+  test("keeps same-origin browser preview addresses relative", () => {
+    useRightSidebarStore.getState().navigateBrowser(PROJECT_ID, "/api/projects/project-1/preview/output/index.html")
+
+    expect(useRightSidebarStore.getState().projectBrowser[PROJECT_ID]).toEqual({
+      address: "/api/projects/project-1/preview/output/index.html",
+      history: ["/api/projects/project-1/preview/output/index.html"],
+      historyIndex: 0,
+      zoom: 1,
+    })
+  })
+
   test("keeps sidebar ui state isolated per project", () => {
     useRightSidebarStore.getState().setViewMode(PROJECT_ID, "changes")
     useRightSidebarStore.getState().setCommitDraft(PROJECT_ID, { summary: "feat: one", description: "body" })

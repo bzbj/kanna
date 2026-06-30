@@ -32,7 +32,7 @@ import {
   Check,
 } from "lucide-react"
 import { cn } from "../../lib/utils"
-import { parseLocalFileLink } from "../../lib/pathUtils"
+import { parseLocalFileLink, type ParsedLocalFileLink } from "../../lib/pathUtils"
 import { useTranscriptRenderOptions } from "./render-context"
 
 export type OpenLocalLinkTarget = {
@@ -44,20 +44,31 @@ export type OpenLocalLinkTarget = {
   trigger?: "click" | "contextmenu"
 }
 type OpenLocalLinkHandler = (target: OpenLocalLinkTarget) => void
+type ResolveLocalLinkHandler = (href: string | undefined | null) => ParsedLocalFileLink | null
 
 const defaultOpenLocalLink: OpenLocalLinkHandler = () => {}
 
-const OpenLocalLinkContext = createContext<OpenLocalLinkHandler>(defaultOpenLocalLink)
+const OpenLocalLinkContext = createContext<{
+  onOpenLocalLink: OpenLocalLinkHandler
+  resolveLocalLink?: ResolveLocalLinkHandler
+}>({
+  onOpenLocalLink: defaultOpenLocalLink,
+})
 
 export function OpenLocalLinkProvider({
   children,
   onOpenLocalLink,
+  resolveLocalLink,
 }: {
   children: ReactNode
   onOpenLocalLink?: OpenLocalLinkHandler
+  resolveLocalLink?: ResolveLocalLinkHandler
 }) {
   return (
-    <OpenLocalLinkContext.Provider value={onOpenLocalLink ?? defaultOpenLocalLink}>
+    <OpenLocalLinkContext.Provider value={{
+      onOpenLocalLink: onOpenLocalLink ?? defaultOpenLocalLink,
+      resolveLocalLink,
+    }}>
       {children}
     </OpenLocalLinkContext.Provider>
   )
@@ -369,13 +380,16 @@ export const markdownComponents = {
 
 export function createMarkdownComponents(options?: {
   onOpenLocalLink?: OpenLocalLinkHandler
+  resolveLocalLink?: ResolveLocalLinkHandler
 }) {
   return {
     ...markdownComponents,
     a: ({ children, href, onClick, ...props }: ComponentPropsWithoutRef<"a">) => {
-      const onOpenLocalLink = options?.onOpenLocalLink ?? useContext(OpenLocalLinkContext)
+      const linkContext = useContext(OpenLocalLinkContext)
+      const onOpenLocalLink = options?.onOpenLocalLink ?? linkContext.onOpenLocalLink
+      const resolveLocalLink = options?.resolveLocalLink ?? linkContext.resolveLocalLink
       const renderOptions = useTranscriptRenderOptions()
-      const parsedLocalLink = parseLocalFileLink(href)
+      const parsedLocalLink = parseLocalFileLink(href) ?? resolveLocalLink?.(href) ?? null
 
       if (parsedLocalLink && renderOptions.localLinkMode === "text") {
         return (

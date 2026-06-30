@@ -9,7 +9,7 @@ import { ProcessingMessage } from "../../components/messages/ProcessingMessage"
 import { ContextMenu, ContextMenuTrigger } from "../../components/ui/context-menu"
 import { OpenExternalContextMenuContent } from "../../components/open-external-menu"
 import { cn } from "../../lib/utils"
-import { shouldOpenLocalFileLinkInEditor } from "../../lib/pathUtils"
+import { parseProjectRelativeHtmlFileLink, shouldOpenLocalFileLinkInEditor } from "../../lib/pathUtils"
 import {
   buildResolvedTranscriptRows,
   KannaTranscriptRow,
@@ -210,6 +210,10 @@ export const ChatTranscriptViewport = memo(function ChatTranscriptViewport({
     })
   }, [onOpenLocalLink])
 
+  const resolveProjectHtmlLink = useCallback((href: string | undefined | null) => (
+    parseProjectRelativeHtmlFileLink(href, localPath)
+  ), [localPath])
+
   const renderItem = useCallback(({ item }: { item: ResolvedTranscriptRow }) => (
     <div className="mx-auto w-full max-w-[800px] pb-5" data-transcript-row-id={item.id}>
       <KannaTranscriptRow
@@ -263,7 +267,7 @@ export const ChatTranscriptViewport = memo(function ChatTranscriptViewport({
 
   return (
     <>
-      <OpenLocalLinkProvider onOpenLocalLink={handleOpenLocalLinkClick}>
+      <OpenLocalLinkProvider onOpenLocalLink={handleOpenLocalLinkClick} resolveLocalLink={resolveProjectHtmlLink}>
         <LegendList<ResolvedTranscriptRow>
           ref={listRef}
           data={resolvedRows}

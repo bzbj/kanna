@@ -11,7 +11,9 @@ import { Card, CardContent } from "../../components/ui/card"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../../components/ui/resizable"
 import { actionMatchesEvent, getResolvedKeybindings } from "../../lib/keybindings"
 import { deriveLatestContextWindowSnapshot } from "../../lib/contextWindow"
+import { getProjectHtmlPreviewPath } from "../../lib/pathUtils"
 import { cn } from "../../lib/utils"
+import { buildProjectFilePreviewUrl } from "../../../shared/project-file-urls"
 import {
   DEFAULT_RIGHT_SIDEBAR_SIZE,
   DEFAULT_RIGHT_SIDEBAR_VISIBILITY_STATE,
@@ -494,6 +496,7 @@ export function ChatPage() {
   const setTerminalSizes = useTerminalLayoutStore((store) => store.setTerminalSizes)
   const toggleRightPanel = useRightSidebarStore((store) => store.togglePanel)
   const hideRightPanel = useRightSidebarStore((store) => store.hidePanel)
+  const navigateBrowser = useRightSidebarStore((store) => store.navigateBrowser)
   const setRightSidebarSize = useRightSidebarStore((store) => store.setSize)
   const scrollback = useTerminalPreferencesStore((store) => store.scrollbackLines)
   const minColumnWidth = useTerminalPreferencesStore((store) => store.minColumnWidth)
@@ -709,6 +712,31 @@ export function ChatPage() {
   const handleOpenExternal = useCallback<NonNullable<ComponentProps<typeof ChatNavbar>["onOpenExternal"]>>((action, editor) => {
     void state.handleOpenExternal(action, editor)
   }, [state.handleOpenExternal])
+
+  const handleOpenTranscriptLocalLink = useCallback<KannaState["handleOpenLocalLink"]>(async (target, action, editor) => {
+    const projectLocalPath = state.runtime?.localPath ?? state.navbarLocalPath
+    const previewPath = target.trigger === "contextmenu"
+      ? null
+      : getProjectHtmlPreviewPath(target.path, projectLocalPath)
+
+    if (projectId && previewPath) {
+      navigateBrowser(projectId, buildProjectFilePreviewUrl(projectId, previewPath))
+      if (activeRightPanel !== "browser") {
+        toggleRightPanel(projectId, "browser")
+      }
+      return
+    }
+
+    await state.handleOpenLocalLink(target, action, editor)
+  }, [
+    activeRightPanel,
+    navigateBrowser,
+    projectId,
+    state.handleOpenLocalLink,
+    state.navbarLocalPath,
+    state.runtime?.localPath,
+    toggleRightPanel,
+  ])
 
   const handleRemoveTerminal = useCallback((currentProjectId: string, terminalId: string) => {
     void state.socket.command({ type: "terminal.close", terminalId }).catch(() => {})
@@ -961,7 +989,7 @@ export function ChatPage() {
           onStopDraining={state.handleStopDraining}
           onSteerQueuedMessage={state.handleSteerQueuedMessage}
           onRemoveQueuedMessage={state.handleRemoveQueuedMessage}
-          onOpenLocalLink={state.handleOpenLocalLink}
+          onOpenLocalLink={handleOpenTranscriptLocalLink}
           editorPreset={editorPreset}
           editorCommandTemplate={editorCommandTemplate}
           platform={state.localProjects?.machine.platform}

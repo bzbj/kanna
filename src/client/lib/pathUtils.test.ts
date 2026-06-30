@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { parseLocalFileLink, shouldOpenLocalFileLinkInEditor } from "./pathUtils"
+import {
+  getProjectHtmlPreviewPath,
+  parseLocalFileLink,
+  parseProjectRelativeHtmlFileLink,
+  shouldOpenLocalFileLinkInEditor,
+} from "./pathUtils"
 
 describe("parseLocalFileLink", () => {
   test("parses an absolute file path with a line fragment", () => {
@@ -75,5 +80,37 @@ describe("shouldOpenLocalFileLinkInEditor", () => {
     expect(shouldOpenLocalFileLinkInEditor("/Users/jake/Projects/kanna/movie.mp4")).toBe(false)
     expect(shouldOpenLocalFileLinkInEditor("/Users/jake/Projects/kanna/report.docx")).toBe(false)
     expect(shouldOpenLocalFileLinkInEditor("/Users/jake/Projects/kanna/archive.zip")).toBe(false)
+  })
+})
+
+describe("getProjectHtmlPreviewPath", () => {
+  test("returns the relative html path for project-local files", () => {
+    expect(getProjectHtmlPreviewPath("/Users/jake/Projects/kanna/output/index.html", "/Users/jake/Projects/kanna")).toBe("output/index.html")
+    expect(getProjectHtmlPreviewPath("/Users/jake/Projects/kanna/output/preview.HTM", "/Users/jake/Projects/kanna/")).toBe("output/preview.HTM")
+  })
+
+  test("rejects non-html and out-of-project files", () => {
+    expect(getProjectHtmlPreviewPath("/Users/jake/Projects/kanna/output/index.ts", "/Users/jake/Projects/kanna")).toBeNull()
+    expect(getProjectHtmlPreviewPath("/Users/jake/Projects/kanna-archive/output/index.html", "/Users/jake/Projects/kanna")).toBeNull()
+  })
+
+  test("rejects paths that escape the project", () => {
+    expect(getProjectHtmlPreviewPath("/Users/jake/Projects/kanna/../secret.html", "/Users/jake/Projects/kanna")).toBeNull()
+  })
+})
+
+describe("parseProjectRelativeHtmlFileLink", () => {
+  test("resolves relative html links against the project path", () => {
+    expect(parseProjectRelativeHtmlFileLink("./output/index.html#L12C3", "/Users/jake/Projects/kanna")).toEqual({
+      path: "/Users/jake/Projects/kanna/output/index.html",
+      line: 12,
+      column: 3,
+    })
+  })
+
+  test("rejects external links, non-html files, and project escapes", () => {
+    expect(parseProjectRelativeHtmlFileLink("https://example.com/index.html", "/Users/jake/Projects/kanna")).toBeNull()
+    expect(parseProjectRelativeHtmlFileLink("output/index.ts", "/Users/jake/Projects/kanna")).toBeNull()
+    expect(parseProjectRelativeHtmlFileLink("../secret.html", "/Users/jake/Projects/kanna")).toBeNull()
   })
 })

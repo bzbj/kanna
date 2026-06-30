@@ -76,4 +76,25 @@ describe("markdownComponents", () => {
     expect(html).toContain("/Users/jake/Projects/kanna/src/client/app/App.tsx#L1")
     expect(html).not.toContain('target="_blank"')
   })
+
+  test("uses the local link resolver from context", () => {
+    const html = renderToStaticMarkup(
+      <OpenLocalLinkProvider
+        onOpenLocalLink={() => {}}
+        resolveLocalLink={(href) => href === "output/index.html"
+          ? { path: "/Users/jake/Projects/kanna/output/index.html" }
+          : null}
+      >
+        <Markdown
+          remarkPlugins={[remarkGfm]}
+          components={createMarkdownComponents()}
+        >
+          {"[preview](output/index.html)"}
+        </Markdown>
+      </OpenLocalLinkProvider>
+    )
+
+    expect(html).toContain("output/index.html")
+    expect(html).not.toContain('target="_blank"')
+  })
 })
