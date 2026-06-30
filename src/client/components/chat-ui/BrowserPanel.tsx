@@ -1,5 +1,6 @@
 import { CornerDownLeft, Ellipsis, ExternalLink, Globe, Home, Minus, Play, Plus, RefreshCw, SquareArrowOutUpRight, Trash2, Zap } from "lucide-react"
 import { memo, useCallback, useEffect, useRef, useState, type FocusEvent, type FormEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
+import { buildBrowserPreviewProxyUrl } from "../../../shared/browser-preview-proxy"
 import type { LocalHttpServerInfo, ProjectQuickAction } from "../../../shared/protocol"
 import type { KannaSocket } from "../../app/socket"
 import {
@@ -77,6 +78,7 @@ function BrowserPanelImpl({ projectId, socket, onRunQuickAction }: BrowserPanelP
   const setBrowserZoom = useRightSidebarStore((store) => store.setBrowserZoom)
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const address = browserState?.address ?? ""
+  const previewAddress = address ? buildBrowserPreviewProxyUrl(address) : ""
   const zoom = browserState?.zoom ?? 1
   const [addressDraft, setAddressDraft] = useState(address)
   const [iframeVersion, setIframeVersion] = useState(0)
@@ -346,7 +348,7 @@ function BrowserPanelImpl({ projectId, socket, onRunQuickAction }: BrowserPanelP
                 size="none"
                 title="Open external"
                 aria-label="Open external"
-                onClick={() => window.open(address, "_blank", "noopener,noreferrer")}
+                onClick={() => window.open(previewAddress, "_blank", "noopener,noreferrer")}
                 className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 border-border/0 text-muted-foreground opacity-0 hover:!border-border/0 hover:!bg-transparent hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -456,7 +458,7 @@ function BrowserPanelImpl({ projectId, socket, onRunQuickAction }: BrowserPanelP
                           <ContextMenuItem
                             onSelect={(event) => {
                               event.preventDefault()
-                              window.open(server.address, "_blank", "noopener,noreferrer")
+                              window.open(buildBrowserPreviewProxyUrl(server.address), "_blank", "noopener,noreferrer")
                             }}
                           >
                             <SquareArrowOutUpRight className="h-3.5 w-3.5" />
@@ -497,8 +499,8 @@ function BrowserPanelImpl({ projectId, socket, onRunQuickAction }: BrowserPanelP
             <div className="h-full w-full overflow-auto bg-muted/20">
               <iframe
                 ref={iframeRef}
-                key={`${address}-${iframeVersion}`}
-                src={address}
+                key={`${previewAddress}-${iframeVersion}`}
+                src={previewAddress}
                 title="Browser panel"
                 sandbox="allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts"
                 className="h-full w-full origin-top-left border-0 bg-background"

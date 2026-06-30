@@ -17,6 +17,7 @@ import { TerminalManager } from "./terminal-manager"
 import { UpdateManager } from "./update-manager"
 import type { UpdateInstallAttemptResult } from "./cli-runtime"
 import { createWsRouter, type ClientState } from "./ws-router"
+import { handleBrowserPreviewProxy } from "./browser-preview-proxy"
 import { deleteProjectUpload, inferAttachmentContentType, inferProjectFileContentType, persistProjectUpload } from "./uploads"
 import { getProjectUploadDir } from "./paths"
 
@@ -225,6 +226,13 @@ export async function startKannaServer(options: StartKannaServerOptions = {}) {
 
           if (url.pathname === "/health") {
             return Response.json({ ok: true, port: actualPort })
+          }
+
+          const browserPreviewProxyResponse = await handleBrowserPreviewProxy(req, url, {
+            blockedPorts: [actualPort],
+          })
+          if (browserPreviewProxyResponse) {
+            return browserPreviewProxyResponse
           }
 
           const uploadResponse = await handleProjectUpload(req, url, store)
