@@ -6,6 +6,8 @@ import {
   getKeybindingsFilePath,
   getKeybindingsFilePathDisplay,
   getRuntimeProfile,
+  LINJUNKAI_EDITION,
+  LINJUNKAI_EDITION_SEQUENCE,
 } from "./branding"
 
 describe("runtime profile helpers", () => {
@@ -27,5 +29,23 @@ describe("runtime profile helpers", () => {
     expect(getDataDirDisplay(env)).toBe("~/.kanna-dev/data")
     expect(getKeybindingsFilePath("/tmp/home", env)).toBe("/tmp/home/.kanna-dev/keybindings.json")
     expect(getKeybindingsFilePathDisplay(env)).toBe("~/.kanna-dev/keybindings.json")
+  })
+})
+
+describe("linjunkAI edition helpers", () => {
+  test("starts the local edition sequence at Pup", () => {
+    expect(LINJUNKAI_EDITION).toBe("Pup")
+    expect(LINJUNKAI_EDITION_SEQUENCE).toEqual([
+      "Pup",
+      "Husky",
+      "Corgi",
+      "Samoyed",
+      "Shiba",
+      "Labrador",
+      "Golden",
+      "Shepherd",
+      "Collie",
+      "Border",
+    ])
   })
 })

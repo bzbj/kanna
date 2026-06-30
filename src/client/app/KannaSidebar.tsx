@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
-import { Loader2, PanelLeft, X, Menu, Plus, Settings } from "lucide-react"
+import { Loader2, PanelLeft, PawPrint, X, Menu, Plus, Settings } from "lucide-react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { APP_NAME } from "../../shared/branding"
+import { APP_NAME, LINJUNKAI_EDITION } from "../../shared/branding"
 import { Button } from "../components/ui/button"
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog"
 import { formatSidebarAgeLabel } from "../lib/formatters"
@@ -24,6 +24,7 @@ const SIDEBAR_WIDTH_STORAGE_KEY = "kanna:sidebar-width"
 export const DEFAULT_SIDEBAR_WIDTH = 275
 export const MIN_SIDEBAR_WIDTH = 220
 export const MAX_SIDEBAR_WIDTH = 520
+const EDITION_BADGE_TOOLTIP = `Software Edition: ${LINJUNKAI_EDITION}.\nA newborn puppy: small, fresh, and just starting out.`
 
 export function clampSidebarWidth(width: number) {
   if (!Number.isFinite(width)) return DEFAULT_SIDEBAR_WIDTH
@@ -47,20 +48,42 @@ function BrandMark({ className }: { className?: string }) {
 
 function SidebarWordmark() {
   return (
-    <>
+    <span className="inline-flex min-w-0 max-w-[190px] shrink items-center">
       <img
         src="/linjunkai-logo-full.png"
         alt="Linjunkai.com"
-        className="h-7 w-auto max-w-[190px] object-contain dark:hidden"
+        className="h-7 w-auto max-w-full object-contain dark:hidden"
         draggable={false}
       />
       <img
         src="/linjunkai-logo-dark.png"
         alt="Linjunkai.com"
-        className="hidden h-7 w-auto max-w-[190px] object-contain dark:block"
+        className="hidden h-7 w-auto max-w-full object-contain dark:block"
         draggable={false}
       />
-    </>
+    </span>
+  )
+}
+
+function EditionBadge() {
+  return (
+    <span
+      className="relative isolate inline-flex h-6 max-w-[104px] shrink-0 items-center gap-1.5 overflow-hidden rounded-[9px] border border-logo/30 bg-background/85 px-2 pr-2.5 text-[10px] font-bold leading-none tracking-[0.075em] text-logo shadow-[0_1px_2px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.85)] dark:border-logo/40 dark:bg-card/85 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.08)]"
+      title={EDITION_BADGE_TOOLTIP}
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-1 top-px h-px rounded-full bg-white/70 dark:bg-white/10"
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute left-[8px] top-1/2 size-3.5 -translate-y-1/2 rounded-full border border-logo/20 bg-logo/10 dark:border-logo/30 dark:bg-logo/15"
+      />
+      <span className="relative flex size-4 shrink-0 items-center justify-center rounded-full bg-logo text-white shadow-[0_1px_2px_rgba(15,23,42,0.18)]">
+        <PawPrint className="size-2.5" strokeWidth={2.7} />
+      </span>
+      <span className="min-w-0 truncate">{LINJUNKAI_EDITION}</span>
+    </span>
   )
 }
 
@@ -428,7 +451,7 @@ function KannaSidebarImpl({
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <div className="flex items-center justify-self-center gap-2 md:justify-self-auto">
+          <div className="flex min-w-0 items-center justify-self-center gap-2 md:justify-self-auto">
             <button
               type="button"
               onClick={onCollapse}
@@ -440,6 +463,7 @@ function KannaSidebarImpl({
             </button>
             <BrandMark className="h-5 w-5 rounded-md object-contain sm:h-6 sm:w-6 md:hidden" />
             <SidebarWordmark />
+            <EditionBadge />
           </div>
           <div className="flex items-center justify-self-end md:justify-self-auto">
             <Button
