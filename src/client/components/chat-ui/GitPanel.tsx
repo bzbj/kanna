@@ -14,7 +14,9 @@ import type {
   GitHubPublishInfo,
   GitHubRepoAvailabilityResult,
 } from "../../../shared/types"
+import { buildProjectFileContentUrl, buildProjectFilePreviewUrl } from "../../../shared/project-file-urls"
 import { useStickyState } from "../../hooks/useStickyState"
+import { downloadUrl } from "../../lib/download"
 import { cn } from "../../lib/utils"
 import { isDiffPathChecked, useDiffCommitStore } from "../../stores/diffCommitStore"
 import { useRightSidebarStore } from "../../stores/rightSidebarStore"
@@ -65,10 +67,14 @@ function getDiffPreviewAttachment(projectId: string | null, file: DiffFile): Cha
     displayName: file.path.split("/").pop() ?? file.path,
     absolutePath: file.path,
     relativePath: file.path,
-    contentUrl: `/api/projects/${projectId}/files/${encodeURIComponent(file.path)}/content`,
+    contentUrl: buildProjectFileContentUrl(projectId, file.path),
     mimeType: file.mimeType,
     size: file.size,
   }
+}
+
+function getProjectFileName(filePath: string) {
+  return filePath.split("/").pop() || filePath || "download"
 }
 
 export interface DiffFileActions {
@@ -1187,6 +1193,9 @@ function DiffFileCard({
   })
   const previewAttachment = useMemo(() => getDiffPreviewAttachment(projectId, file), [file, projectId])
   const hasPreviewAttachment = previewAttachment !== null
+  const canReadProjectFile = Boolean(projectId) && file.changeType !== "deleted"
+  const projectFilePreviewUrl = canReadProjectFile && projectId ? buildProjectFilePreviewUrl(projectId, file.path) : ""
+  const projectFileContentUrl = canReadProjectFile && projectId ? buildProjectFileContentUrl(projectId, file.path) : ""
   const shouldLoadPatchWhenVisible = shouldLoadDiffPatchNow({
     isCollapsed,
     hasPreviewAttachment,
@@ -1218,6 +1227,16 @@ function DiffFileCard({
       return
     }
     setSelectedAttachmentId(attachment.id)
+  }
+
+  function handleOpenProjectFilePreview() {
+    if (!projectFilePreviewUrl || typeof window === "undefined") return
+    window.open(new URL(projectFilePreviewUrl, window.location.origin).toString(), "_blank", "noopener,noreferrer")
+  }
+
+  function handleDownloadProjectFile() {
+    if (!projectFileContentUrl) return
+    downloadUrl(projectFileContentUrl, getProjectFileName(file.path))
   }
 
   function openContextMenuFromButton(event: ReactMouseEvent<HTMLButtonElement>) {
@@ -1376,6 +1395,26 @@ function DiffFileCard({
         >
           <Code className="h-3.5 w-3.5" />
           <span className="text-xs font-medium">Open in {editorLabel}</span>
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={!projectFilePreviewUrl}
+          onSelect={(event) => {
+            event.stopPropagation()
+            handleOpenProjectFilePreview()
+          }}
+        >
+          <Globe className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Open Preview</span>
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={!projectFileContentUrl}
+          onSelect={(event) => {
+            event.stopPropagation()
+            handleDownloadProjectFile()
+          }}
+        >
+          <Download className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Download File</span>
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={(event) => {

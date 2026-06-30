@@ -250,6 +250,11 @@ export async function startKannaServer(options: StartKannaServerOptions = {}) {
             return attachmentContentResponse
           }
 
+          const projectFilePreviewResponse = await handleProjectFilePreview(req, url, store)
+          if (projectFilePreviewResponse) {
+            return projectFilePreviewResponse
+          }
+
           const projectFileContentResponse = await handleProjectFileContent(req, url, store)
           if (projectFileContentResponse) {
             return projectFileContentResponse
@@ -398,10 +403,78 @@ async function handleAttachmentContent(req: Request, url: URL, store: EventStore
     return Response.json({ error: "Attachment not found" }, { status: 404 })
   }
 
-  return new Response(file, {
-    headers: {
-      "Content-Type": inferAttachmentContentType(storedName, file.type),
-    },
+  const headers = new Headers({
+    "Content-Type": inferAttachmentContentType(storedName, file.type),
+  })
+  applyDownloadHeader(headers, storedName, url)
+
+  return new Response(file, { headers })
+}
+
+function resolveProjectFileFromUrl(store: EventStore, projectId: string, rawRelativePath: string) {
+  const project = store.getProject(projectId)
+  if (!project) {
+    return { error: Response.json({ error: "Project not found" }, { status: 404 }) }
+  }
+
+  let decodedPath: string
+  try {
+    decodedPath = decodeURIComponent(rawRelativePath)
+  } catch {
+    return { error: Response.json({ error: "Invalid project file path" }, { status: 400 }) }
+  }
+
+  const relativePath = path.posix.normalize(decodedPath.replaceAll("\\", "/"))
+  if (!relativePath || relativePath === "." || relativePath.startsWith("../") || relativePath.includes("/../") || path.posix.isAbsolute(relativePath)) {
+    return { error: Response.json({ error: "Invalid project file path" }, { status: 400 }) }
+  }
+
+  const filePath = path.resolve(project.localPath, relativePath)
+  const projectRoot = path.resolve(project.localPath)
+  if (filePath !== projectRoot && !filePath.startsWith(`${projectRoot}${path.sep}`)) {
+    return { error: Response.json({ error: "Invalid project file path" }, { status: 400 }) }
+  }
+
+  return { project, relativePath, filePath }
+}
+
+async function readProjectFile(projectFilePath: string) {
+  const file = Bun.file(projectFilePath)
+  try {
+    const info = await stat(projectFilePath)
+    if (!info.isFile()) {
+      return { error: Response.json({ error: "File not found" }, { status: 404 }) }
+    }
+  } catch {
+    return { error: Response.json({ error: "File not found" }, { status: 404 }) }
+  }
+
+  return { file }
+}
+
+async function handleProjectFilePreview(req: Request, url: URL, store: EventStore) {
+  const match = url.pathname.match(/^\/api\/projects\/([^/]+)\/preview\/(.+)$/)
+  if (!match) {
+    return null
+  }
+
+  if (req.method !== "GET") {
+    return new Response(null, {
+      status: 405,
+      headers: {
+        Allow: "GET",
+      },
+    })
+  }
+
+  const resolved = resolveProjectFileFromUrl(store, match[1], match[2])
+  if ("error" in resolved) return resolved.error
+
+  const readResult = await readProjectFile(resolved.filePath)
+  if ("error" in readResult) return readResult.error
+
+  return new Response(readResult.file, {
+    headers: getProjectFilePreviewHeaders(resolved.relativePath, readResult.file.type),
   })
 }
 
@@ -420,37 +493,76 @@ async function handleProjectFileContent(req: Request, url: URL, store: EventStor
     })
   }
 
-  const project = store.getProject(match[1])
-  if (!project) {
-    return Response.json({ error: "Project not found" }, { status: 404 })
-  }
+  const resolved = resolveProjectFileFromUrl(store, match[1], match[2])
+  if ("error" in resolved) return resolved.error
 
-  const relativePath = path.posix.normalize(decodeURIComponent(match[2]).replaceAll("\\", "/"))
-  if (!relativePath || relativePath === "." || relativePath.startsWith("../") || relativePath.includes("/../") || path.posix.isAbsolute(relativePath)) {
-    return Response.json({ error: "Invalid project file path" }, { status: 400 })
-  }
+  const readResult = await readProjectFile(resolved.filePath)
+  if ("error" in readResult) return readResult.error
 
-  const filePath = path.resolve(project.localPath, relativePath)
-  const projectRoot = path.resolve(project.localPath)
-  if (filePath !== projectRoot && !filePath.startsWith(`${projectRoot}${path.sep}`)) {
-    return Response.json({ error: "Invalid project file path" }, { status: 400 })
-  }
-
-  const file = Bun.file(filePath)
-  try {
-    const info = await stat(filePath)
-    if (!info.isFile()) {
-      return Response.json({ error: "File not found" }, { status: 404 })
-    }
-  } catch {
-    return Response.json({ error: "File not found" }, { status: 404 })
-  }
-
-  return new Response(file, {
-    headers: {
-      "Content-Type": inferProjectFileContentType(relativePath, file.type),
-    },
+  const headers = new Headers({
+    "Content-Type": inferProjectFileContentType(resolved.relativePath, readResult.file.type),
   })
+  applyDownloadHeader(headers, path.basename(resolved.relativePath), url)
+
+  return new Response(readResult.file, { headers })
+}
+
+function applyDownloadHeader(headers: Headers, fileName: string, url: URL) {
+  if (url.searchParams.get("download") !== "1") return
+  headers.set("Content-Disposition", buildAttachmentContentDisposition(fileName))
+}
+
+function buildAttachmentContentDisposition(fileName: string) {
+  const fallbackName = path.basename(fileName).replaceAll("\\", "-").replace(/["\r\n]/g, "_") || "download"
+  return `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeRfc5987ValueChars(fileName)}`
+}
+
+function encodeRfc5987ValueChars(value: string) {
+  return encodeURIComponent(value)
+    .replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+}
+
+function getProjectFilePreviewHeaders(relativePath: string, fallbackType?: string) {
+  const headers = new Headers({
+    "Content-Type": inferProjectFilePreviewContentType(relativePath, fallbackType),
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+  })
+
+  if (isHtmlFile(relativePath)) {
+    headers.set(
+      "Content-Security-Policy",
+      "sandbox allow-downloads allow-forms allow-modals allow-popups allow-scripts"
+    )
+  }
+
+  return headers
+}
+
+function inferProjectFilePreviewContentType(fileName: string, fallbackType?: string) {
+  const extension = path.extname(fileName).toLowerCase()
+  switch (extension) {
+    case ".html":
+    case ".htm":
+      return "text/html; charset=utf-8"
+    case ".css":
+      return "text/css; charset=utf-8"
+    case ".js":
+    case ".mjs":
+    case ".cjs":
+      return "text/javascript; charset=utf-8"
+    case ".svg":
+      return "image/svg+xml"
+    case ".webmanifest":
+      return "application/manifest+json; charset=utf-8"
+    default:
+      return inferProjectFileContentType(fileName, fallbackType)
+  }
+}
+
+function isHtmlFile(fileName: string) {
+  const extension = path.extname(fileName).toLowerCase()
+  return extension === ".html" || extension === ".htm"
 }
 
 async function handleProjectUploadDelete(req: Request, url: URL, store: EventStore) {

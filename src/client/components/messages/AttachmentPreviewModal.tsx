@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
-import { ExternalLink, Link2 } from "lucide-react"
+import { Download, ExternalLink, Link2 } from "lucide-react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import type { ChatAttachment } from "../../../shared/types"
+import { downloadUrl } from "../../lib/download"
 import { Button } from "../ui/button"
 import {
   Dialog,
@@ -138,6 +139,11 @@ export function AttachmentPreviewModal({ attachment, onOpenChange }: Props) {
     window.open(absoluteContentUrl, "_blank", "noopener,noreferrer")
   }
 
+  function handleDownload() {
+    if (!attachment?.contentUrl) return
+    downloadUrl(attachment.contentUrl, attachment.displayName)
+  }
+
   return (
     <Dialog open={attachment !== null && !previewTarget?.openInNewTab} onOpenChange={onOpenChange}>
       <DialogContent size="lg" className="max-w-[min(92vw,960px)] overflow-hidden p-0">
@@ -157,6 +163,10 @@ export function AttachmentPreviewModal({ attachment, onOpenChange }: Props) {
                 <DialogGhostButton type="button" onClick={handleCopyLink}>
                   <Link2 className="mr-2 h-4 w-4" />
                   Copy Link
+                </DialogGhostButton>
+                <DialogGhostButton type="button" onClick={handleDownload}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
                 </DialogGhostButton>
                 <Button type="button" variant="outline" onClick={handleOpenInNewTab}>
                   <ExternalLink className="mr-2 h-4 w-4" />
