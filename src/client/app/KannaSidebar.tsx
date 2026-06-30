@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Loader2, PanelLeft, PawPrint, X, Menu, Plus, Settings } from "lucide-react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { APP_NAME, LINJUNKAI_EDITION } from "../../shared/branding"
+import { APP_NAME, getLinjunkaiEditionTooltip, LINJUNKAI_EDITION } from "../../shared/branding"
 import { Button } from "../components/ui/button"
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog"
 import { formatSidebarAgeLabel } from "../lib/formatters"
@@ -24,7 +24,7 @@ const SIDEBAR_WIDTH_STORAGE_KEY = "kanna:sidebar-width"
 export const DEFAULT_SIDEBAR_WIDTH = 275
 export const MIN_SIDEBAR_WIDTH = 220
 export const MAX_SIDEBAR_WIDTH = 520
-const EDITION_BADGE_TOOLTIP = `Software Edition: ${LINJUNKAI_EDITION}.\nA newborn puppy: small, fresh, and just starting out.`
+const EDITION_BADGE_TOOLTIP = getLinjunkaiEditionTooltip()
 
 export function clampSidebarWidth(width: number) {
   if (!Number.isFinite(width)) return DEFAULT_SIDEBAR_WIDTH

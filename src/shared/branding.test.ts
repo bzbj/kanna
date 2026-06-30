@@ -5,8 +5,10 @@ import {
   getDataRootName,
   getKeybindingsFilePath,
   getKeybindingsFilePathDisplay,
+  getLinjunkaiEditionTooltip,
   getRuntimeProfile,
   LINJUNKAI_EDITION,
+  LINJUNKAI_EDITION_DESCRIPTIONS,
   LINJUNKAI_EDITION_SEQUENCE,
 } from "./branding"
 
@@ -47,5 +49,18 @@ describe("linjunkAI edition helpers", () => {
       "Collie",
       "Border",
     ])
+  })
+
+  test("defines tooltip descriptions for every local edition", () => {
+    expect(Object.keys(LINJUNKAI_EDITION_DESCRIPTIONS)).toEqual([...LINJUNKAI_EDITION_SEQUENCE])
+    for (const edition of LINJUNKAI_EDITION_SEQUENCE) {
+      expect(getLinjunkaiEditionTooltip(edition)).toBe(`Software Edition: ${edition}.\n${LINJUNKAI_EDITION_DESCRIPTIONS[edition]}`)
+    }
+  })
+
+  test("keeps the Pup tooltip anchored to the newborn puppy meaning", () => {
+    expect(getLinjunkaiEditionTooltip("Pup")).toBe(
+      "Software Edition: Pup.\nA newborn puppy: small, fresh, and just starting out."
+    )
   })
 })

@@ -17,6 +17,18 @@ export const LINJUNKAI_EDITION_SEQUENCE = [
 ] as const
 export type LinjunkaiEdition = typeof LINJUNKAI_EDITION_SEQUENCE[number]
 export const LINJUNKAI_EDITION: LinjunkaiEdition = "Pup"
+export const LINJUNKAI_EDITION_DESCRIPTIONS: Record<LinjunkaiEdition, string> = {
+  Pup: "A newborn puppy: small, fresh, and just starting out.",
+  Husky: "A loud young sled dog: energetic, curious, and not fully disciplined yet.",
+  Corgi: "A compact herder: small, quick, and surprisingly capable.",
+  Samoyed: "A friendly working dog: warm, steady, and easy to trust.",
+  Shiba: "An independent companion: opinionated, alert, and starting to feel self-directed.",
+  Labrador: "A reliable helper: practical, loyal, and ready for everyday work.",
+  Golden: "A thoughtful retriever: cooperative, gentle, and good at bringing things back.",
+  Shepherd: "A disciplined working dog: protective, focused, and strong at execution.",
+  Collie: "A graceful herder: perceptive, organized, and careful with complex tasks.",
+  Border: "A Border Collie: intensely smart, responsive, and built for advanced work.",
+}
 export const RUNTIME_PROFILE_ENV_VAR = "KANNA_RUNTIME_PROFILE"
 // Read version from package.json — JSON import works in both Bun and Vite
 import pkg from "../../package.json"
@@ -88,4 +100,8 @@ export function getLlmProviderFilePathDisplay(env: RuntimeEnv = getRuntimeEnv())
 
 export function getCliInvocation(arg?: string) {
   return arg ? `${CLI_COMMAND} ${arg}` : CLI_COMMAND
+}
+
+export function getLinjunkaiEditionTooltip(edition: LinjunkaiEdition = LINJUNKAI_EDITION) {
+  return `Software Edition: ${edition}.\n${LINJUNKAI_EDITION_DESCRIPTIONS[edition]}`
 }
